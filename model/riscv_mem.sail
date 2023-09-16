@@ -108,8 +108,8 @@ function read_kind_of_flags (aq : bool, rl : bool, res : bool) -> option(read_ki
     (false, false, true)  => Some(Read_RISCV_reserved),
     (true, false, true)   => Some(Read_RISCV_reserved_acquire),
     (true, true, true)    => Some(Read_RISCV_reserved_strong_acquire),
-    (false, true, false)  => None(), /* should these be instead throwing error_not_implemented as below? */
-    (false, true, true)   => None()
+    (false, true, false)  => Some(Read_plain),
+    (false, true, true)   => Some(Read_plain),
   }
 
 // only used for actual memory regions, to avoid MMIO effects
@@ -193,8 +193,6 @@ function mem_read_priv_meta (typ, priv, paddr, width, aq, rl, res, meta) = {
     if (aq | res) & not(is_aligned_addr(paddr, width))
     then MemException(E_Load_Addr_Align())
     else match (aq, rl, res) {
-      (false, true,  false) => throw(Error_not_implemented("load.rl")),
-      (false, true,  true)  => throw(Error_not_implemented("lr.rl")),
       (_, _, _)             => pmp_mem_read(typ, priv, paddr, width, aq, rl, res, meta)
     };
   rvfi_read(paddr, width, result);
@@ -222,9 +220,9 @@ function mem_write_ea (addr, width, aq, rl, con) = {
     (false, true,  false) => MemValue(write_ram_ea(Write_RISCV_release, addr, width)),
     (false, false, true)  => MemValue(write_ram_ea(Write_RISCV_conditional, addr, width)),
     (false, true , true)  => MemValue(write_ram_ea(Write_RISCV_conditional_release, addr, width)),
-    (true,  false, false) => throw(Error_not_implemented("store.aq")),
+    (true,  false, false) => MemValue(write_ram_ea(Write_plain, addr, width)),
     (true,  true,  false) => MemValue(write_ram_ea(Write_RISCV_strong_release, addr, width)),
-    (true,  false, true)  => throw(Error_not_implemented("sc.aq")),
+    (true,  false, true)  => MemValue(write_ram_ea(Write_plain, addr, width)),
     (true,  true , true)  => MemValue(write_ram_ea(Write_RISCV_conditional_strong_release, addr, width))
   }
 }
@@ -301,8 +299,8 @@ function mem_write_value_priv_meta (paddr, width, value, typ, priv, meta, aq, rl
       (true,  true,  false) => Write_RISCV_strong_release,
       (true,  true , true)  => Write_RISCV_conditional_strong_release,
       // throw an illegal instruction here?
-      (true,  false, false) => throw(Error_not_implemented("store.aq")),
-      (true,  false, true)  => throw(Error_not_implemented("sc.aq"))
+      (true,  false, false) => Write_plain,
+      (true,  false, true)  => Write_plain,
     };
     let result = pmp_mem_write(wk, paddr, width, value, typ, priv, meta);
     rvfi_write(paddr, width, value, meta, result);
