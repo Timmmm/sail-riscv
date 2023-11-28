@@ -150,32 +150,38 @@ function walk39(vaddr, ac, priv, mxr, do_sum, ptb, level, global, ext_ptw) = {
 // ideally we would use the below form:
 // type TLB39_Entry = TLB_Entry(sizeof(asid64), sizeof(vaddr39), sizeof(paddr64), sizeof(pte64))
 type TLB39_Entry = TLB_Entry(16, 39, 56, 64)
-register tlb39 : option(TLB39_Entry)
 
-val lookup_TLB39 : (asid64, vaddr39) -> option((nat, TLB39_Entry))
-function lookup_TLB39(asid, vaddr) =
-  match tlb39 {
+register tlb39 : vector(64, dec, option(TLB39_Entry))
+
+val lookup_TLB39 : (asid64, vaddr39) -> option((range(0, 63), TLB39_Entry))
+function lookup_TLB39(asid, vaddr) = {
+  let index = unsigned(vaddr[17 .. 12]);
+  match tlb39[index] {
     None()  => None(),
-    Some(e) => if match_TLB_Entry(e, asid, vaddr) then Some((0, e)) else None()
+    Some(e) => if match_TLB_Entry(e, asid, vaddr) then Some((index, e)) else None(),
   }
+}
 
 val add_to_TLB39 : (asid64, vaddr39, paddr64, SV39_PTE, paddr64, nat, bool) -> unit
 function add_to_TLB39(asid, vAddr, pAddr, pte, pteAddr, level, global) = {
   let ent : TLB39_Entry = make_TLB_Entry(asid, global, vAddr, pAddr, pte.bits(), level, pteAddr, SV39_LEVEL_BITS);
-  tlb39 = Some(ent)
+  let index = UInt(vAddr[17 .. 12]);
+  tlb39[index] = Some(ent);
 }
 
-function write_TLB39(idx : nat, ent : TLB39_Entry) -> unit =
-  tlb39 = Some(ent)
+function write_TLB39(index : range(0, 63), ent : TLB39_Entry) -> unit = {
+  tlb39[index] = Some(ent);
+}
 
 val flush_TLB39 : (option(asid64), option(vaddr39)) -> unit
-function flush_TLB39(asid, addr) =
-  match (tlb39) {
-    None()  => (),
-    Some(e) => if   flush_TLB_Entry(e, asid, addr)
-               then tlb39 = None()
-               else ()
+function flush_TLB39(asid, addr) = {
+  foreach (i from 0 to (length(tlb39) - 1)) {
+    match tlb39[i] {
+      Some(ent) => if flush_TLB_Entry(ent, asid, addr) then { tlb39[i] = None(); },
+      None() => (),
+    };
   }
+}
 
 /* address translation */
 
@@ -199,9 +205,9 @@ function translate39(asid, ptb, vAddr, ac, priv, mxr, do_sum, level, ext_ptw) = 
                 TR_Failure(PTW_PTE_Update(), ext_ptw)
               } else {
                 /* update PTE entry and TLB */
-                n_pte = update_BITS(pte, pbits.bits());
+                var n_pte = update_BITS(pte, pbits.bits());
                 n_pte = update_Ext(n_pte, ext);
-                n_ent : TLB39_Entry = ent;
+                var n_ent : TLB39_Entry = ent;
                 n_ent.pte = n_pte.bits();
                 write_TLB39(idx, n_ent);
                 /* update page table */
@@ -252,5 +258,7 @@ function translate39(asid, ptb, vAddr, ac, priv, mxr, do_sum, level, ext_ptw) = 
 }
 
 function init_vmem_sv39() -> unit = {
-  tlb39 = None()
+  foreach (i from 0 to (length(tlb39) - 1)) {
+    tlb39[i] = None();
+  }
 }
