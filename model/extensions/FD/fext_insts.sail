@@ -356,9 +356,9 @@ mapping clause encdec = F_MADD_TYPE_S(rs3, rs2, rs1, rm, rd, FNMADD_S)
 
 $[split op]
 function clause execute F_MADD_TYPE_S(rs3, rs2, rs1, rm, rd, op) = {
-  let rs1_val_32b = F_or_X_S(rs1);
-  let rs2_val_32b = F_or_X_S(rs2);
-  let rs3_val_32b = F_or_X_S(rs3);
+  let rs1_val_32b = F_or_X(32, rs1);
+  let rs2_val_32b = F_or_X(32, rs2);
+  let rs3_val_32b = F_or_X(32, rs3);
   match (select_instr_or_fcsr_rm (rm)) {
     None() => Illegal_Instruction(),
     Some(rm') => {
@@ -371,7 +371,7 @@ function clause execute F_MADD_TYPE_S(rs3, rs2, rs1, rm, rd, op) = {
           FNMADD_S => riscv_f32MulAdd (rm_3b, negate_S (rs1_val_32b), rs2_val_32b, negate_S (rs3_val_32b))
         };
       accrue_fflags(fflags);
-      F_or_X_S(rd) = rd_val_32b;
+      F_or_X(rd) = rd_val_32b;
       RETIRE_SUCCESS
     }
   }
@@ -423,8 +423,8 @@ mapping clause encdec = F_BIN_RM_TYPE_S(rs2, rs1, rm, rd, FDIV_S)
 
 $[split op]
 function clause execute F_BIN_RM_TYPE_S(rs2, rs1, rm, rd, op) = {
-  let rs1_val_32b = F_or_X_S(rs1);
-  let rs2_val_32b = F_or_X_S(rs2);
+  let rs1_val_32b = F_or_X(32, rs1);
+  let rs2_val_32b = F_or_X(32, rs2);
   match (select_instr_or_fcsr_rm (rm)) {
     None() => Illegal_Instruction(),
     Some(rm') => {
@@ -436,7 +436,7 @@ function clause execute F_BIN_RM_TYPE_S(rs2, rs1, rm, rd, op) = {
         FDIV_S  => riscv_f32Div (rm_3b, rs1_val_32b, rs2_val_32b)
       };
       accrue_fflags(fflags);
-      F_or_X_S(rd) = rd_val_32b;
+      F_or_X(rd) = rd_val_32b;
       RETIRE_SUCCESS
     }
   }
@@ -510,7 +510,7 @@ mapping clause encdec = F_UN_RM_XF_TYPE_S(rs1, rm, rd, FCVT_S_LU)
 // Execution semantics ================================
 
 function clause execute F_UN_RM_FF_TYPE_S(rs1, rm, rd, FSQRT_S) = {
-  let rs1_val_S = F_or_X_S(rs1);
+  let rs1_val_S = F_or_X(32, rs1);
   match (select_instr_or_fcsr_rm (rm)) {
     None() => Illegal_Instruction(),
     Some(rm') => {
@@ -518,14 +518,14 @@ function clause execute F_UN_RM_FF_TYPE_S(rs1, rm, rd, FSQRT_S) = {
       let (fflags, rd_val_S) = riscv_f32Sqrt   (rm_3b, rs1_val_S);
 
       accrue_fflags(fflags);
-      F_or_X_S(rd) = rd_val_S;
+      F_or_X(rd) = rd_val_S;
       RETIRE_SUCCESS
     }
   }
 }
 
 function clause execute F_UN_RM_FX_TYPE_S(rs1, rm, rd, FCVT_W_S) = {
-  let rs1_val_S = F_or_X_S(rs1);
+  let rs1_val_S = F_or_X(32, rs1);
   match (select_instr_or_fcsr_rm (rm)) {
     None() => Illegal_Instruction(),
     Some(rm') => {
@@ -540,7 +540,7 @@ function clause execute F_UN_RM_FX_TYPE_S(rs1, rm, rd, FCVT_W_S) = {
 }
 
 function clause execute F_UN_RM_FX_TYPE_S(rs1, rm, rd, FCVT_WU_S) = {
-  let rs1_val_S = F_or_X_S(rs1);
+  let rs1_val_S = F_or_X(32, rs1);
   match (select_instr_or_fcsr_rm (rm)) {
     None() => Illegal_Instruction(),
     Some(rm') => {
@@ -563,7 +563,7 @@ function clause execute F_UN_RM_XF_TYPE_S(rs1, rm, rd, FCVT_S_W) = {
       let (fflags, rd_val_S) = riscv_i32ToF32 (rm_3b, rs1_val_W);
 
       accrue_fflags(fflags);
-      F_or_X_S(rd) = rd_val_S;
+      F_or_X(rd) = rd_val_S;
       RETIRE_SUCCESS
     }
   }
@@ -578,7 +578,7 @@ function clause execute F_UN_RM_XF_TYPE_S(rs1, rm, rd, FCVT_S_WU) = {
       let (fflags, rd_val_S) = riscv_ui32ToF32 (rm_3b, rs1_val_WU);
 
       accrue_fflags(fflags);
-      F_or_X_S(rd) = rd_val_S;
+      F_or_X(rd) = rd_val_S;
       RETIRE_SUCCESS
     }
   }
@@ -586,7 +586,7 @@ function clause execute F_UN_RM_XF_TYPE_S(rs1, rm, rd, FCVT_S_WU) = {
 
 function clause execute F_UN_RM_FX_TYPE_S(rs1, rm, rd, FCVT_L_S) = {
   assert(xlen >= 64);
-  let rs1_val_S = F_or_X_S(rs1);
+  let rs1_val_S = F_or_X(32, rs1);
   match (select_instr_or_fcsr_rm (rm)) {
     None() => Illegal_Instruction(),
     Some(rm') => {
@@ -602,7 +602,7 @@ function clause execute F_UN_RM_FX_TYPE_S(rs1, rm, rd, FCVT_L_S) = {
 
 function clause execute F_UN_RM_FX_TYPE_S(rs1, rm, rd, FCVT_LU_S) = {
   assert(xlen >= 64);
-  let rs1_val_S = F_or_X_S(rs1);
+  let rs1_val_S = F_or_X(32, rs1);
   match (select_instr_or_fcsr_rm (rm)) {
     None() => Illegal_Instruction(),
     Some(rm') => {
@@ -626,7 +626,7 @@ function clause execute F_UN_RM_XF_TYPE_S(rs1, rm, rd, FCVT_S_L) = {
       let (fflags, rd_val_S) = riscv_i64ToF32 (rm_3b, rs1_val_L);
 
       accrue_fflags(fflags);
-      F_or_X_S(rd) = rd_val_S;
+      F_or_X(rd) = rd_val_S;
       RETIRE_SUCCESS
     }
   }
@@ -642,7 +642,7 @@ function clause execute F_UN_RM_XF_TYPE_S(rs1, rm, rd, FCVT_S_LU) = {
       let (fflags, rd_val_S) = riscv_ui64ToF32 (rm_3b, rs1_val_LU);
 
       accrue_fflags(fflags);
-      F_or_X_S(rd) = rd_val_S;
+      F_or_X(rd) = rd_val_S;
       RETIRE_SUCCESS
     }
   }
@@ -728,41 +728,41 @@ mapping clause encdec = F_BIN_TYPE_X_S(rs2, rs1, rd, FLE_S)
 // Execution semantics ================================
 
 function clause execute F_BIN_TYPE_F_S(rs2, rs1, rd, FSGNJ_S) = {
-  let rs1_val_S    = F_or_X_S(rs1);
-  let rs2_val_S    = F_or_X_S(rs2);
+  let rs1_val_S    = F_or_X(32, rs1);
+  let rs2_val_S    = F_or_X(32, rs2);
   let (s1, e1, m1) = fsplit_S (rs1_val_S);
   let (s2, e2, m2) = fsplit_S (rs2_val_S);
   let rd_val_S     = fmake_S (s2, e1, m1);
 
-  F_or_X_S(rd) = rd_val_S;
+  F_or_X(rd) = rd_val_S;
   RETIRE_SUCCESS
 }
 
 function clause execute F_BIN_TYPE_F_S(rs2, rs1, rd, FSGNJN_S) = {
-  let rs1_val_S    = F_or_X_S(rs1);
-  let rs2_val_S    = F_or_X_S(rs2);
+  let rs1_val_S    = F_or_X(32, rs1);
+  let rs2_val_S    = F_or_X(32, rs2);
   let (s1, e1, m1) = fsplit_S (rs1_val_S);
   let (s2, e2, m2) = fsplit_S (rs2_val_S);
   let rd_val_S     = fmake_S (0b1 ^ s2, e1, m1);
 
-  F_or_X_S(rd) = rd_val_S;
+  F_or_X(rd) = rd_val_S;
   RETIRE_SUCCESS
 }
 
 function clause execute F_BIN_TYPE_F_S(rs2, rs1, rd, FSGNJX_S) = {
-  let rs1_val_S    = F_or_X_S(rs1);
-  let rs2_val_S    = F_or_X_S(rs2);
+  let rs1_val_S    = F_or_X(32, rs1);
+  let rs2_val_S    = F_or_X(32, rs2);
   let (s1, e1, m1) = fsplit_S (rs1_val_S);
   let (s2, e2, m2) = fsplit_S (rs2_val_S);
   let rd_val_S     = fmake_S (s1 ^ s2, e1, m1);
 
-  F_or_X_S(rd) = rd_val_S;
+  F_or_X(rd) = rd_val_S;
   RETIRE_SUCCESS
 }
 
 function clause execute F_BIN_TYPE_F_S(rs2, rs1, rd, FMIN_S) = {
-  let rs1_val_S = F_or_X_S(rs1);
-  let rs2_val_S = F_or_X_S(rs2);
+  let rs1_val_S = F_or_X(32, rs1);
+  let rs2_val_S = F_or_X(32, rs2);
 
   let is_quiet  = true;
   let (rs1_lt_rs2, fflags) = fle_S (rs1_val_S, rs2_val_S, is_quiet);
@@ -776,13 +776,13 @@ function clause execute F_BIN_TYPE_F_S(rs2, rs1, rd, FMIN_S) = {
                   else /* (not rs1_lt_rs2) */                                            rs2_val_S;
 
   accrue_fflags(fflags);
-  F_or_X_S(rd) = rd_val_S;
+  F_or_X(rd) = rd_val_S;
   RETIRE_SUCCESS
 }
 
 function clause execute F_BIN_TYPE_F_S(rs2, rs1, rd, FMAX_S) = {
-  let rs1_val_S = F_or_X_S(rs1);
-  let rs2_val_S = F_or_X_S(rs2);
+  let rs1_val_S = F_or_X(32, rs1);
+  let rs2_val_S = F_or_X(32, rs2);
 
   let is_quiet  = true;
   let (rs2_lt_rs1, fflags) = fle_S (rs2_val_S, rs1_val_S, is_quiet);
@@ -796,13 +796,13 @@ function clause execute F_BIN_TYPE_F_S(rs2, rs1, rd, FMAX_S) = {
                   else /* (not rs2_lt_rs1) */                                            rs2_val_S;
 
   accrue_fflags(fflags);
-  F_or_X_S(rd) = rd_val_S;
+  F_or_X(rd) = rd_val_S;
   RETIRE_SUCCESS
 }
 
 function clause execute F_BIN_TYPE_X_S(rs2, rs1, rd, FEQ_S) = {
-  let rs1_val_S = F_or_X_S(rs1);
-  let rs2_val_S = F_or_X_S(rs2);
+  let rs1_val_S = F_or_X(32, rs1);
+  let rs2_val_S = F_or_X(32, rs2);
 
   let (fflags, rd_val) : (bits_fflags, bool) =
       riscv_f32Eq (rs1_val_S, rs2_val_S);
@@ -813,8 +813,8 @@ function clause execute F_BIN_TYPE_X_S(rs2, rs1, rd, FEQ_S) = {
 }
 
 function clause execute F_BIN_TYPE_X_S(rs2, rs1, rd, FLT_S) = {
-  let rs1_val_S = F_or_X_S(rs1);
-  let rs2_val_S = F_or_X_S(rs2);
+  let rs1_val_S = F_or_X(32, rs1);
+  let rs2_val_S = F_or_X(32, rs2);
 
   let (fflags, rd_val) : (bits_fflags, bool) =
       riscv_f32Lt (rs1_val_S, rs2_val_S);
@@ -825,8 +825,8 @@ function clause execute F_BIN_TYPE_X_S(rs2, rs1, rd, FLT_S) = {
 }
 
 function clause execute F_BIN_TYPE_X_S(rs2, rs1, rd, FLE_S) = {
-  let rs1_val_S = F_or_X_S(rs1);
-  let rs2_val_S = F_or_X_S(rs2);
+  let rs1_val_S = F_or_X(32, rs1);
+  let rs2_val_S = F_or_X(32, rs2);
 
   let (fflags, rd_val) : (bits_fflags, bool) =
       riscv_f32Le (rs1_val_S, rs2_val_S);
@@ -887,7 +887,7 @@ mapping clause encdec = F_UN_TYPE_F_S(rs1, rd, FMV_W_X)
 // Execution semantics ================================
 
 function clause execute F_UN_TYPE_X_S(rs1, rd, FCLASS_S) = {
-  let rs1_val_S = F_or_X_S(rs1);
+  let rs1_val_S = F_or_X(32, rs1);
 
   let rd_val_10b : bits (10) =
     if      f_is_neg_inf_S     (rs1_val_S) then 0b_00_0000_0001

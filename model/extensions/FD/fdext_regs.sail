@@ -230,72 +230,34 @@ overload F_box = { rF_box, wF_box }
 // Access functions that access X registers if Zfinx (float in X) is enabled
 // (mutually exclusive with the F/D extensions), otherwise F registers.
 
-function rF_or_X_H(i : fregidx) -> bits(16) = {
-  assert(flen >= 16);
-  assert(hartSupports(Ext_F) != hartSupports(Ext_Zfinx));
-  if   hartSupports(Ext_F)
-  then F_H(i)
-  else X(fregidx_to_regidx(i))[15..0]
+val rF_or_X : forall 'n, 'n in {16, 32, 64} . (implicit('n), regidx) -> bits('n)
+function rF_or_X(_n, i) = {
+  assert(sizeof(flen) >= 'n);
+  assert(sys_enable_fdext() != sys_enable_zfinx());
+  if   sys_enable_fdext()
+  then F_box(i)
+  else if sizeof(xlen) == 32 & 'n == 64 then {
+    assert(i[0] == bitzero);
+    if i == zeros() then zeros() else X(i + 1) @ X(i)
+  } else X(i)['n - 1 .. 0]
 }
 
-function rF_or_X_S(i : fregidx) -> bits(32) = {
-  assert(flen >= 32);
-  assert(hartSupports(Ext_F) != hartSupports(Ext_Zfinx));
-  if   hartSupports(Ext_F)
-  then F_S(i)
-  else X(fregidx_to_regidx(i))[31..0]
-}
-
-function rF_or_X_D(i : fregidx) -> bits(64) = {
-  assert(flen >= 64);
-  assert(hartSupports(Ext_F) != hartSupports(Ext_Zfinx));
-  if   hartSupports(Ext_F)
-  then F_D(i)
-  else if xlen >= 64
-  then X(fregidx_to_regidx(i))[63..0]
-  else {
-    let ridx = fregidx_to_regidx(i);
-    assert(regidx_bits(ridx)[0] == bitzero);
-    if ridx == zreg then zeros() else X(ridx + 1) @ X(ridx)
-  }
-}
-
-function wF_or_X_H(i : fregidx, data : bits(16)) -> unit = {
-  assert(flen >= 16);
-  assert(hartSupports(Ext_F) != hartSupports(Ext_Zfinx));
-  if   hartSupports(Ext_F)
-  then F_H(i) = data
-  else X(fregidx_to_regidx(i)) = sign_extend(data)
-}
-
-function wF_or_X_S(i : fregidx, data : bits(32)) -> unit = {
-  assert(flen >= 32);
-  assert(hartSupports(Ext_F) != hartSupports(Ext_Zfinx));
-  if   hartSupports(Ext_F)
-  then F_S(i) = data
-  else X(fregidx_to_regidx(i)) = sign_extend(data)
-}
-
-function wF_or_X_D(i : fregidx, data : bits(64)) -> unit = {
-  assert (flen >= 64);
-  assert(hartSupports(Ext_F) != hartSupports(Ext_Zfinx));
-  if   hartSupports(Ext_F)
-  then F_D(i) = data
-  else if xlen >= 64
-  then X(fregidx_to_regidx(i)) = sign_extend(data)
-  else {
-    let ridx = fregidx_to_regidx(i);
-    assert (regidx_bits(ridx)[0] == bitzero);
-    if ridx != zreg then {
-      X(ridx) = data[31..0];
-      X(ridx + 1) = data[63..32];
+val wF_or_X : forall 'n, 'n in {16, 32, 64} . (regidx, bits('n)) -> unit
+function wF_or_X(i, data) = {
+  assert(sizeof(flen) >= 'n);
+  assert(sys_enable_fdext() != sys_enable_zfinx());
+  if   sys_enable_fdext()
+  then F_box(i) = data
+  else if sizeof(xlen) == 32 & 'n == 64 then {
+    assert (i[0] == bitzero);
+    if i != zeros() then {
+      X(i)     = data[31..0];
+      X(i + 1) = data[63..32];
     }
-  }
+  } else X(i) = sign_extend(data)
 }
 
-overload F_or_X_H = { rF_or_X_H, wF_or_X_H }
-overload F_or_X_S = { rF_or_X_S, wF_or_X_S }
-overload F_or_X_D = { rF_or_X_D, wF_or_X_D }
+overload F_or_X = { rF_or_X, wF_or_X }
 
 // mappings for assembly
 

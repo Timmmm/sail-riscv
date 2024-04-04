@@ -17,7 +17,7 @@ mapping clause encdec = FCVT_BF16_S(rs1, rm, rd)
   when currentlyEnabled(Ext_Zfbfmin)
 
 function clause execute FCVT_BF16_S(rs1, rm, rd) = {
-  let rs1_val_S = F_or_X_S(rs1);
+  let rs1_val_S = F_or_X(32, rs1);
   match (select_instr_or_fcsr_rm (rm)) {
     None() => Illegal_Instruction(),
     Some(rm') => {
