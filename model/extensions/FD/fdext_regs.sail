@@ -209,54 +209,26 @@ function wF_bits(Fregidx(i) : fregidx, data: flenbits) -> unit = {
 
 overload F = {rF_bits, wF_bits, rF, wF}
 
-function rF_BF16(i : fregidx) -> bits(16) = {
+// Floating point access functions that automatically box/unbox smaller floats.
+
+val rF_box : forall 'n, 'n in {16, 32, 64} . (implicit('n), regidx) -> bits('n)
+function rF_box(_n, i) = {
+  assert(sizeof(flen) >= 'n);
+  assert(sys_enable_fdext() & not(sys_enable_zfinx()));
   nan_unbox(F(i))
 }
 
-function wF_BF16(i : fregidx, data : bits(16)) -> unit = {
+val wF_box : forall 'n, 'n in {16, 32, 64} . (regidx, bits('n)) -> unit
+function wF_box(i, data) = {
+  assert(sizeof(flen) >= 'n);
+  assert(sys_enable_fdext() & not(sys_enable_zfinx()));
   F(i) = nan_box(data)
 }
 
-function rF_H(i : fregidx) -> bits(16) = {
-  assert(flen >= 16);
-  assert(hartSupports(Ext_F) & not(hartSupports(Ext_Zfinx)));
-  nan_unbox(F(i))
-}
+overload F_box = { rF_box, wF_box }
 
-function wF_H(i : fregidx, data : bits(16)) -> unit = {
-  assert(flen >= 16);
-  assert(hartSupports(Ext_F) & not(hartSupports(Ext_Zfinx)));
-  F(i) = nan_box(data)
-}
-
-function rF_S(i : fregidx) -> bits(32) = {
-  assert(flen >= 32);
-  assert(hartSupports(Ext_F) & not(hartSupports(Ext_Zfinx)));
-  nan_unbox(F(i))
-}
-
-function wF_S(i : fregidx, data : bits(32)) -> unit = {
-  assert(flen >= 32);
-  assert(hartSupports(Ext_F) & not(hartSupports(Ext_Zfinx)));
-  F(i) = nan_box(data)
-}
-
-function rF_D(i : fregidx) -> bits(64) = {
-  assert(flen >= 64);
-  assert(hartSupports(Ext_F) & not(hartSupports(Ext_Zfinx)));
-  F(i)
-}
-
-function wF_D(i : fregidx, data : bits(64)) -> unit = {
-  assert(flen >= 64);
-  assert(hartSupports(Ext_F) & not(hartSupports(Ext_Zfinx)));
-  F(i) = data
-}
-
-overload F_BF16 = { rF_BF16, wF_BF16 }
-overload F_H = { rF_H, wF_H }
-overload F_S = { rF_S, wF_S }
-overload F_D = { rF_D, wF_D }
+// Access functions that access X registers if Zfinx (float in X) is enabled
+// (mutually exclusive with the F/D extensions), otherwise F registers.
 
 function rF_or_X_H(i : fregidx) -> bits(16) = {
   assert(flen >= 16);
