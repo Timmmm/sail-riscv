@@ -282,60 +282,29 @@ mapping clause encdec = LOAD_FP(imm, rs1, rd, DOUBLE)        if haveDExt()
 
 /* Execution semantics ================================ */
 
-val process_fload64 : (regidx, xlenbits, MemoryOpResult(bits(64)))
-                      -> Retired
-function process_fload64(rd, addr, value) =
-  if   sizeof(flen) == 64
-  then match value {
-         MemValue(result) => { F(rd) = result; RETIRE_SUCCESS },
-         MemException(e)  => { handle_mem_exception(addr, e); RETIRE_FAIL }
-       }
-  else {
-    /* should not get here */
-    RETIRE_FAIL
-  }
-
-val process_fload32 : (regidx, xlenbits, MemoryOpResult(bits(32)))
-                      -> Retired
-function process_fload32(rd, addr, value) =
-  match value {
-    MemValue(result) => { F(rd) = nan_box(result); RETIRE_SUCCESS },
-    MemException(e)  => { handle_mem_exception(addr, e); RETIRE_FAIL }
-  }
-
-val process_fload16 : (regidx, xlenbits, MemoryOpResult(bits(16)))
-                      -> Retired
-function process_fload16(rd, addr, value) =
-  match value {
-    MemValue(result) => { F(rd) = nan_box(result); RETIRE_SUCCESS },
-    MemException(e)  => { handle_mem_exception(addr, e); RETIRE_FAIL }
-  }
-
 function clause execute(LOAD_FP(imm, rs1, rd, width)) = {
+  let width_bytes = word_width_bytes(width);
+
+  // This is checked during decoding.
+  assert(width_bytes <= sizeof(xlen_bytes));
+
   let offset : xlenbits = sign_extend(imm);
   /* Get the address, X(rs1) + offset.
      Some extensions perform additional checks on address validity. */
-  match ext_data_get_addr(rs1, offset, Read(Data), width) {
+  match ext_data_get_addr(rs1, offset, Read(Data), width_bytes) {
     Ext_DataAddr_Error(e)  => { ext_handle_data_check_error(e); RETIRE_FAIL },
-    Ext_DataAddr_OK(vaddr) =>
+    Ext_DataAddr_OK(vaddr) => {
+      match check_and_handle_load_vaddr_for_triggers(vaddr, get_arch_pc()) {
+          Some(ret) => return ret,
+          None() => ()
+      };
       if   check_misaligned(vaddr, width)
       then { handle_mem_exception(vaddr, E_Load_Addr_Align()); RETIRE_FAIL }
-      else match translateAddr(vaddr, Read(Data)) {
-        TR_Failure(e, _) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
-        TR_Address(addr, _) => {
-          let (aq, rl, res) = (false, false, false);
-          match (width) {
-            BYTE => { handle_illegal(); RETIRE_FAIL },
-            HALF =>
-               process_fload16(rd, vaddr, mem_read(Read(Data), addr, 2, aq, rl, res)),
-            WORD =>
-               process_fload32(rd, vaddr, mem_read(Read(Data), addr, 4, aq, rl, res)),
-            DOUBLE if sizeof(flen) >= 64 =>
-               process_fload64(rd, vaddr, mem_read(Read(Data), addr, 8, aq, rl, res)),
-            _ => report_invalid_width(__FILE__, __LINE__, width, "floating point load"),
-          }
-        }
+      else match vmem_read(Read(Data), vaddr, width_bytes, false, false, false) {
+        Ok(result)    => { F(rd) = nan_box(result); RETIRE_SUCCESS },
+        Err(vaddr, e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
       }
+    }
   }
 }
 
@@ -368,49 +337,32 @@ mapping clause encdec = STORE_FP(imm7 @ imm5, rs2, rs1, DOUBLE)                 
 
 /* Execution semantics ================================ */
 
-val process_fstore : (xlenbits, MemoryOpResult(bool)) -> Retired
-function process_fstore(vaddr, value) =
-  match value {
-    MemValue(true)  => { RETIRE_SUCCESS },
-    MemValue(false) => { internal_error(__FILE__, __LINE__, "store got false from mem_write_value") },
-    MemException(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL }
-  }
-
 function clause execute (STORE_FP(imm, rs2, rs1, width)) = {
+  let width_bytes = word_width_bytes(width);
+
+  // This is checked during decoding.
+  assert(width_bytes <= sizeof(xlen_bytes));
+
   let offset : xlenbits = sign_extend(imm);
-  let (aq, rl, con) = (false, false, false);
   /* Get the address, X(rs1) + offset.
      Some extensions perform additional checks on address validity. */
-  match ext_data_get_addr(rs1, offset, Write(Data), width) {
+  match ext_data_get_addr(rs1, offset, Write(Data), width_bytes) {
     Ext_DataAddr_Error(e)  => { ext_handle_data_check_error(e); RETIRE_FAIL },
-    Ext_DataAddr_OK(vaddr) =>
+    Ext_DataAddr_OK(vaddr) => {
       if   check_misaligned(vaddr, width)
       then { handle_mem_exception(vaddr, E_SAMO_Addr_Align()); RETIRE_FAIL }
-      else match translateAddr(vaddr, Write(Data)) {
-        TR_Failure(e, _)    => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
-        TR_Address(addr, _) => {
-          let eares : MemoryOpResult(unit) = match width {
-            BYTE   => MemValue () /* bogus placeholder for illegal size */,
-            HALF   => mem_write_ea(addr, 2, aq, rl, false),
-            WORD   => mem_write_ea(addr, 4, aq, rl, false),
-            DOUBLE => mem_write_ea(addr, 8, aq, rl, false)
-          };
-          match (eares) {
-            MemException(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
-            MemValue(_) => {
-              let rs2_val = F(rs2);
-              match (width) {
-                BYTE => { handle_illegal(); RETIRE_FAIL },
-                HALF => process_fstore (vaddr, mem_write_value(addr, 2, rs2_val[15..0], aq, rl, con)),
-                WORD => process_fstore (vaddr, mem_write_value(addr, 4, rs2_val[31..0], aq, rl, con)),
-                DOUBLE if sizeof(flen) >= 64 =>
-                  process_fstore (vaddr, mem_write_value(addr, 8, rs2_val, aq, rl, con)),
-                _ => report_invalid_width(__FILE__, __LINE__, width, "floating point store"),
-              };
-            }
+      else match vmem_write_translate(vaddr, width_bytes, Write(Data), false, false, false) {
+        Err(vaddr, e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
+        Ok(state) => {
+          let rs2_val = F(rs2);
+          match vmem_write_value(state, rs2_val[width_bytes * 8 - 1 .. 0]) {
+            Ok(true)  => { RETIRE_SUCCESS },
+            Ok(false) => { internal_error(__FILE__, __LINE__, "store got false from mem_write_value") },
+            Err(vaddr, e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL }
           }
         }
       }
+    }
   }
 }
 

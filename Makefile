@@ -87,6 +87,7 @@ SAIL_VM_SRCS += riscv_vmem_common.sail
 SAIL_VM_SRCS += riscv_vmem_pte.sail
 SAIL_VM_SRCS += riscv_vmem_ptw.sail
 SAIL_VM_SRCS += riscv_vmem_tlb.sail
+SAIL_VM_SRCS += riscv_vmem_translate.sail
 SAIL_VM_SRCS += riscv_vmem.sail
 
 # Non-instruction sources
