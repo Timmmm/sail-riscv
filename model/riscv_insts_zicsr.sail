@@ -76,8 +76,6 @@ function readCSR csr : csreg -> xlenbits = {
 
     /* supervisor mode */
     (0x100,  _) => lower_mstatus(mstatus).bits,
-    (0x102,  _) => sedeleg.bits,
-    (0x103,  _) => sideleg.bits,
     (0x104,  _) => lower_mie(mie, mideleg).bits,
     (0x105,  _) => get_stvec(),
     (0x106,  _) => zero_extend(scounteren.bits),
@@ -157,8 +155,6 @@ function writeCSR (csr : csreg, value : xlenbits) -> unit = {
 
     /* supervisor mode */
     (0x100,  _) => { mstatus = legalize_sstatus(mstatus, value); Some(mstatus.bits) },
-    (0x102,  _) => { sedeleg = legalize_sedeleg(sedeleg, value); Some(sedeleg.bits) },
-    (0x103,  _) => { sideleg.bits = value; Some(sideleg.bits) }, /* TODO: does this need legalization? */
     (0x104,  _) => { mie = legalize_sie(mie, mideleg, value); Some(mie.bits) },
     (0x105,  _) => { Some(set_stvec(value)) },
     (0x106,  _) => { scounteren = legalize_scounteren(scounteren, value); Some(zero_extend(scounteren.bits)) },

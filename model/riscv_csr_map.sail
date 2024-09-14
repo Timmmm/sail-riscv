@@ -12,16 +12,7 @@ val csr_name_map : csreg <-> string
 
 scattered mapping csr_name_map
 
-/* user trap setup */
-mapping clause csr_name_map = 0x000  <-> "ustatus"
-mapping clause csr_name_map = 0x004  <-> "uie"
-mapping clause csr_name_map = 0x005  <-> "utvec"
-/* user trap handling */
-mapping clause csr_name_map = 0x040  <-> "uscratch"
-mapping clause csr_name_map = 0x041  <-> "uepc"
-mapping clause csr_name_map = 0x042  <-> "ucause"
-mapping clause csr_name_map = 0x043  <-> "utval"
-mapping clause csr_name_map = 0x044  <-> "uip"
+
 /* user floating-point context */
 mapping clause csr_name_map = 0x001  <-> "fflags"
 mapping clause csr_name_map = 0x002  <-> "frm"
@@ -38,8 +29,6 @@ mapping clause csr_name_map = 0xC82  <-> "instreth"
 /* TODO: other hpm counters */
 /* supervisor trap setup */
 mapping clause csr_name_map = 0x100  <-> "sstatus"
-mapping clause csr_name_map = 0x102  <-> "sedeleg"
-mapping clause csr_name_map = 0x103  <-> "sideleg"
 mapping clause csr_name_map = 0x104  <-> "sie"
 mapping clause csr_name_map = 0x105  <-> "stvec"
 mapping clause csr_name_map = 0x106  <-> "scounteren"
