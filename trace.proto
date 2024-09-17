@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+enum Privilege {
+    User = 0;
+    Supervisor = 1;
+    Machine = 2;
+    Debug = 3;
+}
+
+message Event {
+    // Optional sequential event ID starting at 0.
+    optional uint64 id = 1;
+
+    // Optional clock count (`mcycle`) for this event.
+    optional uint64 cycle = 2;
+
+    // Privilege mode for this event.
+    optional Privilege privilege = 3;
+
+    // Set to true for CHERI cores in Capability Pointer mode.
+    optional bool capability_pointer_mode = 4;
+
+    // Optional PC (virtual address). May not be set for some events, e.g. debug.
+    optional uint64 pc = 5;
+
+    // Optional opcode. May not be set for some events, e.g. interrupts.
+    optional uint32 opcode = 6;
+
+    // Optional details about a trap (if any) for this event.
+    optional Trap trap = 7;
+
+    // Memory reads and writes. AMOs are logged as a read and write.
+    repeated MemoryOperation memReads = 8;
+    repeated MemoryOperation memWrites = 9;
+
+    // Register reads and writes.
+    repeated RegisterAccess regReads = 10;
+    repeated RegisterAccess regWrites = 11;
+}
+
+message Trap {
+    uint32 cause = 1;
+    bool is_interrupt = 2;
+}
+
+enum RegisterType {
+    X = 0;
+    F = 1;
+    V = 2;
+    CSR = 3;
+}
+
+message RegisterAccess {
+    RegisterType type = 1;
+    uint16 index = 2;
+    bytes value = 3;
+
+    // Optional CHERI tag.
+    bool tag = 4;
+
+    // Can be optionally set to `true` to indicate the value wasn't actually
+    // changed by this write. This means when doing tandem verification that
+    // it won't be an error for the other trace to not include a write to
+    // this register.
+    bool unchanged = 5;
+}
+
+message MemoryOperation {
+    uint64 virtual_address = 1;
+    uint64 physical_address = 2;
+    bytes data = 3;
+}
