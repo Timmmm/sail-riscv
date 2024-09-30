@@ -162,3 +162,23 @@ function clause execute REMW(rs2, rs1, rd, is_unsigned) = {
 mapping clause assembly = REMW(rs2, rs1, rd, is_unsigned)
   <-> "rem" ^ maybe_u(is_unsigned) ^ "w" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
   when xlen == 64
+
+
+
+
+/* ****************************************************************** */
+union clause ast = DIVI : (bits(12), regidx, regidx)
+
+mapping clause encdec = DIVI(imm, rs1, rd) if extensionEnabled(Ext_M)
+  <-> imm @ rs1 @ 0b000 @ rd @ 0b0001011   if extensionEnabled(Ext_M)
+
+function clause execute (DIVI(imm, rs1, rd)) = {
+  let rs1_int = unsigned(X(rs1));
+  let rs2_int = unsigned(imm);
+  let q = if rs2_int == 0 then -1 else rs1_int / rs2_int;
+  X(rd) = to_bits(xlen, q);
+  RETIRE_SUCCESS
+}
+
+mapping clause assembly = DIVI(imm, rs1, rd)
+  <-> "divi" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ hex_bits_12(imm)
