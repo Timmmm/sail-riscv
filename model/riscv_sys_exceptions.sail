@@ -22,7 +22,7 @@ function prepare_trap_vector(p : Privilege, cause : Mcause) -> xlenbits = {
   let tvec : Mtvec = match p {
                        Machine    => mtvec,
                        Supervisor => stvec,
-                       User       => internal_error(__FILE__, __LINE__, "Invalid privilege level")
+                       User       => internal_error(__FILE__, __LINE__, "Invalid privilege level"),
                      };
   match tvec_addr(tvec, cause) {
     Some(epc) => epc,
@@ -42,7 +42,7 @@ function get_xret_target(p) =
   match p {
     Machine    => mepc,
     Supervisor => sepc,
-    User       => internal_error(__FILE__, __LINE__, "Invalid privilege level")
+    User       => internal_error(__FILE__, __LINE__, "Invalid privilege level"),
   }
 
 val set_xret_target : (Privilege, xlenbits) -> xlenbits
@@ -51,7 +51,7 @@ function set_xret_target(p, value) = {
   match p {
     Machine    => mepc = target,
     Supervisor => sepc = target,
-    User       => internal_error(__FILE__, __LINE__, "Invalid privilege level")
+    User       => internal_error(__FILE__, __LINE__, "Invalid privilege level"),
   };
   target
 }
