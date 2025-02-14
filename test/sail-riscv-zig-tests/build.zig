@@ -4,8 +4,6 @@ const Target = @import("std").Target;
 // List of tests (src/<testname>.zig files).
 const TESTS = [_][]const u8{
     "test_hello_world",
-    // "test_asid_bits_ignored",
-    // "test_deny_implicit_pte_write",
     "test_max_pmp",
 };
 
