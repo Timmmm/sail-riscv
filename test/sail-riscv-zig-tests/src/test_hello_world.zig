@@ -3,7 +3,7 @@
 const std = @import("std");
 const runtime = @import("runtime");
 
-export fn main() u8 {
+pub export fn main() u8 {
     if (test_main()) |_| {
         return 0;
     } else |_| {
