@@ -7,6 +7,10 @@ const TESTS = [_][]const u8{
     "test_max_pmp",
 };
 
+const C_TESTS = [_][]const u8{
+    "test_hello_worldc",
+};
+
 // Construct the build graph in `b` (this doesn't actually build anything itself).
 pub fn build(b: *std.Build) void {
     const features = Target.riscv.Feature;
@@ -53,6 +57,33 @@ pub fn build(b: *std.Build) void {
             .target = target,
             .optimize = optimize,
         });
+
+        exe_mod.addImport("runtime", runtime_mod);
+
+        const exe_name = std.fmt.bufPrint(&buf, "{s}.elf", .{name}) catch std.debug.panic("Test path too long: {s}", .{name});
+
+        const exe = b.addExecutable(.{
+            .name = exe_name,
+            .root_module = exe_mod,
+        });
+
+        exe.setLinkerScript(b.path("src/link.ld"));
+
+        b.installArtifact(exe);
+    }
+
+    for (C_TESTS) |name| {
+        var buf: [512]u8 = undefined;
+        const test_path = std.fmt.bufPrint(&buf, "src/{s}.c", .{name}) catch std.debug.panic("Test path too long: {s}", .{name});
+
+        const exe_mod = b.createModule(.{
+            .root_source_file = b.path("src/c_test_root.zig"),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        });
+
+        exe_mod.addCSourceFile(.{ .file = b.path(test_path) });
 
         exe_mod.addImport("runtime", runtime_mod);
 
