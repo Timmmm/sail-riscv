@@ -1,7 +1,3 @@
-//! Test what happens when an implicit write to a PTE to update
-//! A/D bits fails *after* it is in the TLB e.g. because PMA
-//! permissions now disallow it.
-
 const std = @import("std");
 const runtime = @import("runtime");
 
