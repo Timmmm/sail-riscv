@@ -76,7 +76,6 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("src/c_test_root.zig"),
             .target = target,
             .optimize = optimize,
-            .link_libc = true,
         });
 
         exe_mod.addCSourceFile(.{ .file = b.path(test_path) });
