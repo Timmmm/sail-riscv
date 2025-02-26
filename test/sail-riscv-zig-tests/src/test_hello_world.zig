@@ -14,5 +14,5 @@ pub export fn main() u8 {
 fn test_main() !void {
     const stdout = runtime.htif.getHtifWriter();
 
-    try stdout.print("Hello world.\n", .{});
+    try stdout.print("Hello {s}{c} {d} {d} {d:.6}\n", .{ "worl", 'd', 1, 2, 3.0 });
 }

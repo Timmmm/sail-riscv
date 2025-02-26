@@ -79,6 +79,7 @@ pub fn build(b: *std.Build) void {
         });
 
         exe_mod.addCSourceFile(.{ .file = b.path(test_path) });
+        exe_mod.addCSourceFile(.{ .file = b.path("src/runtime.c") });
 
         exe_mod.addImport("runtime", runtime_mod);
 
