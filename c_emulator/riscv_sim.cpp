@@ -40,6 +40,7 @@ bool do_print_build_info = false;
 bool do_print_default_config = false;
 bool do_print_config_schema = false;
 bool do_print_dts = false;
+bool do_print_all_assembly = false;
 bool do_validate_config = false;
 bool do_print_isa = false;
 
@@ -131,6 +132,7 @@ static void setup_options(CLI::App &app) {
   app.add_flag("--validate-config", do_validate_config, "Exit after config validation (it is always validated)");
   app.add_flag("--print-device-tree", do_print_dts, "Print device tree");
   app.add_flag("--print-isa-string", do_print_isa, "Print ISA string");
+  app.add_flag("--print-all-assembly", do_print_all_assembly, "Print all possible assembly instructions");
   app.add_flag(
     "--enable-experimental-extensions",
     config_enable_experimental_extensions,
@@ -487,6 +489,22 @@ void init_logs() {
 #endif
 }
 
+void print_all_assembly() {
+  config_print_instr = false;
+  config_print_reg = false;
+  config_print_mem_access = false;
+  config_print_clint = false;
+  config_print_exception = false;
+  config_print_interrupt = false;
+  config_print_htif = false;
+  config_print_pma = false;
+  config_print_rvfi = false;
+  config_print_step = false;
+  config_print_ptw = false;
+
+  g_model.zprint_all_legal_assembly(UNIT);
+}
+
 int inner_main(int argc, char **argv) {
   CLI::App app("Sail RISC-V Model");
   argv = app.ensure_utf8(argv);
@@ -587,6 +605,10 @@ int inner_main(int argc, char **argv) {
   }
   if (do_print_isa) {
     print_isa();
+    exit(EXIT_SUCCESS);
+  }
+  if (do_print_all_assembly) {
+    print_all_assembly();
     exit(EXIT_SUCCESS);
   }
 

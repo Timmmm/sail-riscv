@@ -488,7 +488,9 @@ main {
   // Currently this must be the very last thing due to limitations
   // in the Sail compiler's Lean backend.
   after unit_tests
-  requires prelude, core, sys, exceptions, postlude
+  requires prelude, core, sys, exceptions, postlude, Zca, V
 
-  files main/main.sail
+  files
+    main/main.sail,
+    print_all_legal_assembly.sail
 }
