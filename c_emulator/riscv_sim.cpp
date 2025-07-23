@@ -38,17 +38,19 @@ enum {
   OPT_BUILD_INFO,
   OPT_PRINT_DTS,
   OPT_PRINT_ISA,
+  OPT_PRINT_ALL_ASSEMBLY,
 };
 
 static bool do_show_times = false;
 bool do_print_dts = false;
+bool do_print_all_assembly = false;
 bool do_validate_config = false;
 bool do_print_isa = false;
 
 char *config_file = NULL;
 char *term_log = NULL;
 static const char *trace_log_path = NULL;
-FILE *trace_log = NULL;
+FILE *trace_log = stdout;
 char *dtb_file = NULL;
 unsigned char *dtb = NULL;
 size_t dtb_len = 0;
@@ -105,30 +107,31 @@ char *sailcov_file = NULL;
 #endif
 
 static struct option options[] = {
-    {"device-tree-blob",               required_argument, 0, 'b'                },
-    {"terminal-log",                   required_argument, 0, 't'                },
-    {"show-times",                     required_argument, 0, 'p'                },
-    {"test-signature",                 required_argument, 0, 'T'                },
-    {"signature-granularity",          required_argument, 0, 'g'                },
-    {"rvfi-dii",                       required_argument, 0, 'r'                },
-    {"help",                           no_argument,       0, 'h'                },
-    {"config",                         required_argument, 0, 'c'                },
-    {"version",                        no_argument,       0, OPT_PRINT_VERSION  },
-    {"build-info",                     no_argument,       0, OPT_BUILD_INFO     },
-    {"print-default-config",           no_argument,       0, OPT_PRINT_CONFIG   },
-    {"validate-config",                no_argument,       0, OPT_VALIDATE_CONFIG},
-    {"trace",                          optional_argument, 0, 'v'                },
-    {"no-trace",                       optional_argument, 0, 'V'                },
-    {"trace-output",                   required_argument, 0, OPT_TRACE_OUTPUT   },
-    {"inst-limit",                     required_argument, 0, 'l'                },
+    {"device-tree-blob",               required_argument, 0, 'b'                   },
+    {"terminal-log",                   required_argument, 0, 't'                   },
+    {"show-times",                     required_argument, 0, 'p'                   },
+    {"test-signature",                 required_argument, 0, 'T'                   },
+    {"signature-granularity",          required_argument, 0, 'g'                   },
+    {"rvfi-dii",                       required_argument, 0, 'r'                   },
+    {"help",                           no_argument,       0, 'h'                   },
+    {"config",                         required_argument, 0, 'c'                   },
+    {"version",                        no_argument,       0, OPT_PRINT_VERSION     },
+    {"build-info",                     no_argument,       0, OPT_BUILD_INFO        },
+    {"print-default-config",           no_argument,       0, OPT_PRINT_CONFIG      },
+    {"validate-config",                no_argument,       0, OPT_VALIDATE_CONFIG   },
+    {"trace",                          optional_argument, 0, 'v'                   },
+    {"no-trace",                       optional_argument, 0, 'V'                   },
+    {"trace-output",                   required_argument, 0, OPT_TRACE_OUTPUT      },
+    {"inst-limit",                     required_argument, 0, 'l'                   },
     {"enable-experimental-extensions", no_argument,       0,
-     OPT_ENABLE_EXPERIMENTAL_EXTENSIONS                                         },
+     OPT_ENABLE_EXPERIMENTAL_EXTENSIONS                                            },
 #ifdef SAILCOV
-    {"sailcov-file",                   required_argument, 0, OPT_SAILCOV        },
+    {"sailcov-file",                   required_argument, 0, OPT_SAILCOV           },
 #endif
-    {"print-device-tree",              no_argument,       0, OPT_PRINT_DTS      },
-    {"print-isa-string",               no_argument,       0, OPT_PRINT_ISA      },
-    {0,                                0,                 0, 0                  }
+    {"print-device-tree",              no_argument,       0, OPT_PRINT_DTS         },
+    {"print-isa-string",               no_argument,       0, OPT_PRINT_ISA         },
+    {"print-all-assembly",             no_argument,       0, OPT_PRINT_ALL_ASSEMBLY},
+    {0,                                0,                 0, 0                     }
 };
 
 static void print_usage(const char *argv0, int ec)
@@ -302,6 +305,9 @@ static int process_args(int argc, char **argv)
     case OPT_PRINT_ISA:
       do_print_isa = true;
       break;
+    case OPT_PRINT_ALL_ASSEMBLY:
+      do_print_all_assembly = true;
+      break;
     case 'r': {
       config_enable_rvfi = true;
       int rvfi_dii_port = atoi(optarg);
@@ -353,8 +359,8 @@ static int process_args(int argc, char **argv)
   if (dtb_file)
     read_dtb(dtb_file);
 
-  bool no_elf_file_arg
-      = rvfi || do_print_dts || do_print_isa || do_validate_config;
+  bool no_elf_file_arg = rvfi || do_print_dts || do_print_isa
+      || do_validate_config || do_print_all_assembly;
   if (optind > argc || (optind == argc && !no_elf_file_arg)) {
     fprintf(stderr, "No elf file provided.\n");
     print_usage(argv[0], EXIT_SUCCESS);
@@ -670,12 +676,13 @@ void init_logs()
     exit(EXIT_FAILURE);
   }
 
-  if (trace_log_path == NULL) {
-    trace_log = stdout;
-  } else if ((trace_log = fopen(trace_log_path, "w+")) == NULL) {
-    fprintf(stderr, "Cannot create trace log '%s': %s\n", trace_log_path,
-            strerror(errno));
-    exit(EXIT_FAILURE);
+  if (trace_log_path != NULL) {
+    trace_log = fopen(trace_log_path, "w+");
+    if (trace_log == NULL) {
+      fprintf(stderr, "Cannot create trace log '%s': %s\n", trace_log_path,
+              strerror(errno));
+      exit(EXIT_FAILURE);
+    }
   }
 
 #ifdef SAILCOV
@@ -683,6 +690,19 @@ void init_logs()
     sail_set_coverage_file(sailcov_file);
   }
 #endif
+}
+
+void print_all_assembly()
+{
+  config_print_instr = false;
+  config_print_reg = false;
+  config_print_mem_access = false;
+  config_print_platform = false;
+
+  zinit_model("");
+  zgenerate_all_legal_assembly(UNIT);
+
+  exit(0);
 }
 
 int main(int argc, char **argv)
@@ -701,6 +721,9 @@ int main(int argc, char **argv)
   }
   if (do_print_isa) {
     print_isa();
+  }
+  if (do_print_all_assembly) {
+    print_all_assembly();
   }
 
   char *initial_elf_file = argv[files_start];

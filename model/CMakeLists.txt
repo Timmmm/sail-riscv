@@ -215,6 +215,7 @@ foreach (variant IN ITEMS "" "smt" "rocq" "rmem" "lean" "lem" "isabelle")
         ${sail_cfg_srcs}
         ${sail_model_srcs}
         ${test_srcs}
+        "generate_all_legal_assembly.sail"
         "main.sail"
     )
 
@@ -273,6 +274,7 @@ foreach (variant IN ITEMS "" "smt" "rocq" "rmem" "lean" "lem" "isabelle")
                 --c-preserve generate_dts
                 --c-preserve config_is_valid
                 --c-preserve generate_canonical_isa_string
+                --c-preserve generate_all_legal_assembly
                 # Preserve RVFI functions.
                 --c-preserve rvfi_set_instr_packet
                 --c-preserve rvfi_get_cmd
