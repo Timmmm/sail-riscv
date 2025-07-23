@@ -6,10 +6,19 @@ function print_legal_instruction forall 'n . (inst : instruction, opcode : bits(
     // See https://github.com/riscv/sail-riscv/issues/1013
     FENCE_RESERVED(_) => (),
     FENCEI_RESERVED(_) => (),
+    // Temporarily skil these because they have issues with 0 and negatives.
+    // See https://github.com/llvm/llvm-project/issues/150304
+    C_SRLI(_) => (),
+    C_SRAI(_) => (),
+    C_SLLI(_) => (),
+    // Issues with negative immediates
+    // See https://github.com/riscv/sail-riscv/issues/1032
+    C_LUI(_) => (),
     _ => {
       print_endline(assembly(inst));
       print_endline("r " ^ bits_str(opcode));
     },
+
   }
 
 function generate_all_legal_assembly() -> unit = {
