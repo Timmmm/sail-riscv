@@ -46,7 +46,7 @@ mapping clause encdec = VLSEGTYPE(nf, vm, rs1, width, vd)
   <-> encdec_nfields(nf) @ 0b0 @ 0b00 @ vm @ 0b00000 @ encdec_reg(rs1) @ encdec_vlewidth(width) @ encdec_vreg(vd) @ 0b0000111
   when currentlyEnabled(Ext_V)
 
-val process_vlseg : forall 'f 'b 'n 'p, nfields_range('f) & is_mem_width('b) & ('n > 0). (int('f), bits(1), vregidx, int('b), regidx, int('p), int('n)) -> ExecutionResult
+val process_vlseg : forall 'f 'b 'n 'p, nfields_range('f) & is_mem_width('b) & 0 < 'n <= vlen. (int('f), bits(1), vregidx, int('b), regidx, int('p), int('n)) -> ExecutionResult
 function process_vlseg (nf, vm, vd, load_width_bytes, rs1, EMUL_pow, num_elem) = {
   let EMUL_reg : int = if EMUL_pow <= 0 then 1 else 2 ^ EMUL_pow;
   let vm_val : bits('n) = read_vmask(num_elem, vm, zvreg);
@@ -87,6 +87,7 @@ function clause execute(VLSEGTYPE(nf, vm, rs1, width, vd)) = {
   let SEW_pow = get_sew_pow();
   let LMUL_pow = get_lmul_pow();
   let EMUL_pow = EEW_pow - SEW_pow + LMUL_pow;
+  assert(-3 <= EMUL_pow & EMUL_pow <= 3);
   let num_elem = get_num_elem(EMUL_pow, EEW); /* # of element of each register group */
 
   assert(num_elem > 0);
@@ -106,7 +107,7 @@ mapping clause encdec = VLSEGFFTYPE(nf, vm, rs1, width, vd)
   <-> encdec_nfields(nf) @ 0b0 @ 0b00 @ vm @ 0b10000 @ encdec_reg(rs1) @ encdec_vlewidth(width) @ encdec_vreg(vd) @ 0b0000111
   when currentlyEnabled(Ext_V)
 
-val process_vlsegff : forall 'f 'b 'n 'p, nfields_range('f) & is_mem_width('b) & ('n > 0). (int('f), bits(1), vregidx, int('b), regidx, int('p), int('n)) -> ExecutionResult
+val process_vlsegff : forall 'f 'b 'n 'p, nfields_range('f) & is_mem_width('b) & 0 < 'n <= vlen . (int('f), bits(1), vregidx, int('b), regidx, int('p), int('n)) -> ExecutionResult
 function process_vlsegff (nf, vm, vd, load_width_bytes, rs1, EMUL_pow, num_elem) = {
   let EMUL_reg : int = if EMUL_pow <= 0 then 1 else 2 ^ EMUL_pow;
   let vm_val : bits('n) = read_vmask(num_elem, vm, zvreg);
@@ -164,6 +165,7 @@ function clause execute(VLSEGFFTYPE(nf, vm, rs1, width, vd)) = {
   let SEW_pow = get_sew_pow();
   let LMUL_pow = get_lmul_pow();
   let EMUL_pow = EEW_pow - SEW_pow + LMUL_pow;
+  assert(-3 <= EMUL_pow & EMUL_pow <= 3);
   let num_elem = get_num_elem(EMUL_pow, EEW);
 
   assert(num_elem > 0);
@@ -183,7 +185,7 @@ mapping clause encdec = VSSEGTYPE(nf, vm, rs1, width, vs3)
   <-> encdec_nfields(nf) @ 0b0 @ 0b00 @ vm @ 0b00000 @ encdec_reg(rs1) @ encdec_vlewidth(width) @ encdec_vreg(vs3) @ 0b0100111
   when currentlyEnabled(Ext_V)
 
-val process_vsseg : forall 'f 'b 'n 'p, nfields_range('f) & is_mem_width('b) & ('n > 0). (int('f), bits(1), vregidx, int('b), regidx, int('p), int('n)) -> ExecutionResult
+val process_vsseg : forall 'f 'b 'n 'p, nfields_range('f) & is_mem_width('b) & 0 < 'n <= vlen. (int('f), bits(1), vregidx, int('b), regidx, int('p), int('n)) -> ExecutionResult
 function process_vsseg (nf, vm, vs3, load_width_bytes, rs1, EMUL_pow, num_elem) = {
   let EMUL_reg : int = if EMUL_pow <= 0 then 1 else 2 ^ EMUL_pow;
   let vm_val  : bits('n) = read_vmask(num_elem, vm, zvreg);
@@ -221,6 +223,7 @@ function clause execute(VSSEGTYPE(nf, vm, rs1, width, vs3)) = {
   let SEW_pow = get_sew_pow();
   let LMUL_pow = get_lmul_pow();
   let EMUL_pow = EEW_pow - SEW_pow + LMUL_pow;
+  assert(-3 <= EMUL_pow & EMUL_pow <= 3);
   let num_elem = get_num_elem(EMUL_pow, EEW);
 
   assert(num_elem > 0);
@@ -240,7 +243,7 @@ mapping clause encdec = VLSSEGTYPE(nf, vm, rs2, rs1, width, vd)
   <-> encdec_nfields(nf) @ 0b0 @ 0b10 @ vm @ encdec_reg(rs2) @ encdec_reg(rs1) @ encdec_vlewidth(width) @ encdec_vreg(vd) @ 0b0000111
   when currentlyEnabled(Ext_V)
 
-val process_vlsseg : forall 'f 'b 'n 'p, nfields_range('f) & is_mem_width('b) & ('n > 0). (int('f), bits(1), vregidx, int('b), regidx, regidx, int('p), int('n)) -> ExecutionResult
+val process_vlsseg : forall 'f 'b 'n 'p, nfields_range('f) & is_mem_width('b) & 0 < 'n <= vlen . (int('f), bits(1), vregidx, int('b), regidx, regidx, int('p), int('n)) -> ExecutionResult
 function process_vlsseg (nf, vm, vd, load_width_bytes, rs1, rs2, EMUL_pow, num_elem) = {
   let EMUL_reg : int = if EMUL_pow <= 0 then 1 else 2 ^ EMUL_pow;
   let vm_val  : bits('n) = read_vmask(num_elem, vm, zvreg);
@@ -282,6 +285,7 @@ function clause execute(VLSSEGTYPE(nf, vm, rs2, rs1, width, vd)) = {
   let SEW_pow = get_sew_pow();
   let LMUL_pow = get_lmul_pow();
   let EMUL_pow = EEW_pow - SEW_pow + LMUL_pow;
+  assert(-3 <= EMUL_pow & EMUL_pow <= 3);
   let num_elem = get_num_elem(EMUL_pow, EEW);
 
   assert(num_elem > 0);
@@ -301,7 +305,7 @@ mapping clause encdec = VSSSEGTYPE(nf, vm, rs2, rs1, width, vs3)
   <-> encdec_nfields(nf) @ 0b0 @ 0b10 @ vm @ encdec_reg(rs2) @ encdec_reg(rs1) @ encdec_vlewidth(width) @ encdec_vreg(vs3) @ 0b0100111
   when currentlyEnabled(Ext_V)
 
-val process_vssseg : forall 'f 'b 'n 'p, nfields_range('f) & is_mem_width('b) & ('n > 0). (int('f), bits(1), vregidx, int('b), regidx, regidx, int('p), int('n)) -> ExecutionResult
+val process_vssseg : forall 'f 'b 'n 'p, nfields_range('f) & is_mem_width('b) & 0 < 'n <= vlen . (int('f), bits(1), vregidx, int('b), regidx, regidx, int('p), int('n)) -> ExecutionResult
 function process_vssseg (nf, vm, vs3, load_width_bytes, rs1, rs2, EMUL_pow, num_elem) = {
   let EMUL_reg : int = if EMUL_pow <= 0 then 1 else 2 ^ EMUL_pow;
   let vm_val  : bits('n) = read_vmask(num_elem, vm, zvreg);
@@ -340,6 +344,7 @@ function clause execute(VSSSEGTYPE(nf, vm, rs2, rs1, width, vs3)) = {
   let SEW_pow = get_sew_pow();
   let LMUL_pow = get_lmul_pow();
   let EMUL_pow = EEW_pow - SEW_pow + LMUL_pow;
+  assert(-3 <= EMUL_pow & EMUL_pow <= 3);
   let num_elem = get_num_elem(EMUL_pow, EEW);
 
   assert(num_elem > 0);
@@ -359,7 +364,7 @@ mapping clause encdec = VLUXSEGTYPE(nf, vm, vs2, rs1, width, vd)
   <-> encdec_nfields(nf) @ 0b0 @ 0b01 @ vm @ encdec_vreg(vs2) @ encdec_reg(rs1) @ encdec_vlewidth(width) @ encdec_vreg(vd) @ 0b0000111
   when currentlyEnabled(Ext_V)
 
-val process_vlxseg : forall 'f 'ib 'db 'ip 'dp 'n, nfields_range('f) & is_mem_width('ib) & is_mem_width('db) & ('n > 0). (int('f), bits(1), vregidx, int('ib), int('db), int('ip), int('dp), regidx, vregidx, int('n), int) -> ExecutionResult
+val process_vlxseg : forall 'f 'ib 'db 'ip 'dp 'n, nfields_range('f) & is_mem_width('ib) & is_mem_width('db) & 0 < 'n <= vlen . (int('f), bits(1), vregidx, int('ib), int('db), int('ip), int('dp), regidx, vregidx, int('n), int) -> ExecutionResult
 function process_vlxseg (nf, vm, vd, EEW_index_bytes, EEW_data_bytes, EMUL_index_pow, EMUL_data_pow, rs1, vs2, num_elem, mop) = {
   let EMUL_data_reg : int = if EMUL_data_pow <= 0 then 1 else 2 ^ EMUL_data_pow;
   let vm_val  : bits('n) = read_vmask(num_elem, vm, zvreg);
@@ -449,7 +454,7 @@ mapping clause encdec = VSUXSEGTYPE(nf, vm, vs2, rs1, width, vs3)
   <-> encdec_nfields(nf) @ 0b0 @ 0b01 @ vm @ encdec_vreg(vs2) @ encdec_reg(rs1) @ encdec_vlewidth(width) @ encdec_vreg(vs3) @ 0b0100111
   when currentlyEnabled(Ext_V)
 
-val process_vsxseg : forall 'f 'ib 'db 'ip 'dp 'n, nfields_range('f) & is_mem_width('ib) & is_mem_width('db) & ('n > 0). (int('f), bits(1), vregidx, int('ib), int('db), int('ip), int('dp), regidx, vregidx, int('n), int) -> ExecutionResult
+val process_vsxseg : forall 'f 'ib 'db 'ip 'dp 'n, nfields_range('f) & is_mem_width('ib) & is_mem_width('db) & 0 < 'n <= vlen . (int('f), bits(1), vregidx, int('ib), int('db), int('ip), int('dp), regidx, vregidx, int('n), int) -> ExecutionResult
 function process_vsxseg (nf, vm, vs3, EEW_index_bytes, EEW_data_bytes, EMUL_index_pow, EMUL_data_pow, rs1, vs2, num_elem, mop) = {
   let EMUL_data_reg : int = if EMUL_data_pow <= 0 then 1 else 2 ^ EMUL_data_pow;
   let vm_val  : bits('n) = read_vmask(num_elem, vm, zvreg);
