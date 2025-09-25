@@ -94,8 +94,8 @@ function execute_vsetvli(
     handle_illegal_vtype();
     return RETIRE_SUCCESS
   };
-  let LMUL_pow_new = lmul_pow_val(lmul);
-  let SEW_pow_new = sew_pow_val(sew);
+  let LMUL_pow_new = signed(lmul);
+  let SEW_pow_new = unsigned(sew) + 3;
 
   if SEW_pow_new > (LMUL_pow_new + elen_exp) then { handle_illegal_vtype(); return RETIRE_SUCCESS };
   let VLMAX = 2 ^ (LMUL_pow_new + vlen_exp - SEW_pow_new);
@@ -173,8 +173,8 @@ function clause execute VSETIVLI(ma, ta, sew, lmul, uimm, rd) = {
     handle_illegal_vtype();
     return RETIRE_SUCCESS
   };
-  let LMUL_pow_new = lmul_pow_val(lmul);
-  let SEW_pow_new = sew_pow_val(sew);
+  let LMUL_pow_new = signed(lmul);
+  let SEW_pow_new = unsigned(sew) + 3;
 
   if SEW_pow_new > (LMUL_pow_new + elen_exp) then { handle_illegal_vtype(); return RETIRE_SUCCESS };
   let VLMAX = 2 ^ (LMUL_pow_new + vlen_exp - SEW_pow_new);
