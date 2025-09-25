@@ -40,40 +40,35 @@ function float_classify(f) =
   else if float_is_inf(f)      then (if float_is_positive(f) then fp_pos_inf     else fp_neg_inf)
   else internal_error(__FILE__, __LINE__, "float_classify internal logic error")
 
-// Note: The following SMT proofs would be helpful but don't seem to work
-// due to a Sail bug: https://github.com/rems-project/sail/issues/1458
+// Helper function for proofs.
+function bool_int(b : bool) -> {0, 1} = if b then 1 else 0
 
-// // Helper function for proofs.
-// function bool_int(b : bool) -> {0, 1} = if b then 1 else 0
+// Prove that the float is in one broad class.
+$[property]
+function float_in_one_broad_class(f : bits(16)) -> bool =
+  bool_int(float_is_snan(f)) +
+  bool_int(float_is_qnan(f)) +
+  bool_int(float_is_zero(f)) +
+  bool_int(float_is_denormal(f)) +
+  bool_int(float_is_normal(f)) +
+  bool_int(float_is_inf(f)) == 1
 
-// // Prove that the float is in one broad class.
-// $[property]
-// function float_in_one_broad_class(f : bits(16)) -> bool =
-//   bool_int(float_is_snan(f)) +
-//   bool_int(float_is_qnan(f)) +
-//   bool_int(float_is_zero(f)) +
-//   bool_int(float_is_denormal(f)) +
-//   bool_int(float_is_normal(f)) +
-//   bool_int(float_is_inf(f)) == 1
+// Prove that all floats must be positive or negative.
+// This includes NaNs.
+$[property]
+function float_pos_neg_or_nan(f : bits(16)) -> bool =
+  float_is_positive(f) != float_is_negative(f)
 
-// // Prove that non-nan floats must be positive or negative.
-// $[property]
-// function float_pos_neg_or_nan(f : bits(16)) -> bool =
-//   bool_int(float_is_snan(f)) +
-//   bool_int(float_is_qnan(f)) +
-//   bool_int(float_is_positive(f)) +
-//   bool_int(float_is_negative(f)) == 1
-
-// // Another overall class proof. A bit redundant but can't hurt.
-// $[property]
-// function float_in_one_class(f : bits(16)) -> bool =
-//   bool_int(float_is_negative(f) & float_is_inf(f)) +
-//   bool_int(float_is_negative(f) & float_is_normal(f)) +
-//   bool_int(float_is_negative(f) & float_is_denormal(f)) +
-//   bool_int(float_is_negative(f) & float_is_zero(f)) +
-//   bool_int(float_is_positive(f) & float_is_zero(f)) +
-//   bool_int(float_is_positive(f) & float_is_denormal(f)) +
-//   bool_int(float_is_positive(f) & float_is_normal(f)) +
-//   bool_int(float_is_positive(f) & float_is_inf(f)) +
-//   bool_int(float_is_snan(f)) +
-//   bool_int(float_is_qnan(f)) == 1
+// Another overall class proof. A bit redundant but can't hurt.
+$[property]
+function float_in_one_class(f : bits(16)) -> bool =
+  bool_int(float_is_negative(f) & float_is_inf(f)) +
+  bool_int(float_is_negative(f) & float_is_normal(f)) +
+  bool_int(float_is_negative(f) & float_is_denormal(f)) +
+  bool_int(float_is_negative(f) & float_is_zero(f)) +
+  bool_int(float_is_positive(f) & float_is_zero(f)) +
+  bool_int(float_is_positive(f) & float_is_denormal(f)) +
+  bool_int(float_is_positive(f) & float_is_normal(f)) +
+  bool_int(float_is_positive(f) & float_is_inf(f)) +
+  bool_int(float_is_snan(f)) +
+  bool_int(float_is_qnan(f)) == 1
