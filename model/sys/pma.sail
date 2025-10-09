@@ -18,29 +18,7 @@
 // provide a range of useful options that are likely to cover
 // most implementations.
 
-// Set of atomic instructions supported by memory.
-// Each value is a superset of the previous ones.
-enum AtomicSupport = {
-  AMONone,
-  AMOSwap,
-  AMOLogical,
-  AMOArithmetic,
-  // These require Zacas.
-  AMOCASW,
-  AMOCASD,
-  AMOCASQ,
-}
 
-mapping atomic_support_str : AtomicSupport <-> string = {
-  AMONone       <-> "AMONone",
-  AMOSwap       <-> "AMOSwap",
-  AMOLogical    <-> "AMOLogical",
-  AMOArithmetic <-> "AMOArithmetic",
-  AMOCASW       <-> "AMOCASW",
-  AMOCASD       <-> "AMOCASD",
-  AMOCASQ       <-> "AMOCASQ",
-}
-overload to_str = {atomic_support_str}
 
 enum Reservability = { RsrvNone, RsrvNonEventual, RsrvEventual }
 
@@ -82,7 +60,7 @@ struct PMA = {
   misaligned_fault : misaligned_fault,
   // TODO: Atomicity PMA. This is not supported yet because
   // the AccessType needs to be extended to indicate the AMO type.
-  // atomic_support   : AtomicSupport,
+  // amo_level        : option(AmoLevel),
   reservability    : Reservability,
   // Flags whether this memory supports CBO.zero. Note that main memory regions must
   // have this set.
@@ -126,7 +104,7 @@ function pma_attributes_to_str(attr : PMA) -> string =
   (if attr.write_idempotent then " write-idempotent" else "") ^
   " misaligned_fault:" ^ to_str(attr.misaligned_fault) ^
   // TODO: Atomicity PMA.
-  // " " ^ to_str(attr.atomic_support) ^
+  // " " ^ to_str(attr.amo_level) ^
   " " ^ to_str(attr.reservability) ^
   (if attr.supports_cbo_zero then " supports_cbo_zero" else "")
 

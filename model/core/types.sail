@@ -109,6 +109,16 @@ enum AmoLevel = {
   AMOCASQ,
 }
 
+mapping amo_level_str : AmoLevel <-> string = {
+  AMOSwap       <-> "AMOSwap",
+  AMOLogical    <-> "AMOLogical",
+  AMOArithmetic <-> "AMOArithmetic",
+  AMOCASW       <-> "AMOCASW",
+  AMOCASD       <-> "AMOCASD",
+  AMOCASQ       <-> "AMOCASQ",
+}
+overload to_str = {amo_level_str}
+
 union AccessType ('a : Type) = {
   Read             : 'a,
   Write            : 'a,

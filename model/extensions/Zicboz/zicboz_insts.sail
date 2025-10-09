@@ -31,6 +31,8 @@ function clause execute ZICBOZ(rs1) = {
     // is aligned to the cache block, or negative if rs1 is misaligned.
     let negative_offset = (rs1_val & ~(zero_extend(ones(plat_cache_block_size_exp)))) - rs1_val;
 
+    let access_type : AccessType(ext_access_type) = Cache(Zero);
+
     match ext_data_get_addr(rs1, negative_offset, Write(Data), cache_block_size) {
       Ext_DataAddr_Error(e) => Ext_DataAddr_Check_Failure(e),
       Ext_DataAddr_OK(vaddr) => {
@@ -45,10 +47,10 @@ function clause execute ZICBOZ(rs1) = {
           // equal to rs1, but pointer masking can change that.
           Err(e, _) => Memory_Exception(vaddr - negative_offset, e),
           Ok(paddr, _) => {
-            match mem_write_ea(paddr, cache_block_size, false, false, false) {
+            match mem_write_ea(access_type, paddr, cache_block_size) {
               Err(e) => Memory_Exception(vaddr - negative_offset, e),
               Ok(_)  => {
-                match mem_write_value(paddr, cache_block_size, zeros(), false, false, false) {
+                match mem_write_value(/*access_type,*/ paddr, cache_block_size, zeros()) {
                   Ok(true)  => RETIRE_SUCCESS,
                   Ok(false) => internal_error(__FILE__, __LINE__, "store got false from mem_write_value"),
                   Err(e)    => Memory_Exception(vaddr - negative_offset, e)

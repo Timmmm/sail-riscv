@@ -33,7 +33,7 @@ function fetch() -> FetchResult = {
       // split instruction fetch into 16-bit granules to handle RVC, as
       // well as to generate precise fault addresses in any fetch
       // exceptions.
-      match mem_read(InstructionFetch(), ppclo, 2, false, false, false) {
+      match mem_read(InstructionFetch(), ppclo, 2) {
         Err(e)  => F_Error(e, PC),
         Ok(ilo) =>
           if   isRVC(ilo)
@@ -49,7 +49,7 @@ function fetch() -> FetchResult = {
             match translateAddr(Virtaddr(PC_hi), InstructionFetch()) {
               Err(e, _)    => F_Error(e, PC_hi),
               Ok(ppchi, _) =>
-                match mem_read(InstructionFetch(), ppchi, 2, false, false, false) {
+                match mem_read(InstructionFetch(), ppchi, 2) {
                   Err(e)  => F_Error(e, PC_hi),
                   Ok(ihi) => F_Base(append(ihi, ilo))
                 }

@@ -50,14 +50,14 @@ function write_pte forall 'n, 'n in {4, 8} . (
   pte_size : int('n),
   pte      : bits('n * 8),
 ) -> MemoryOpResult(bool) =
-  mem_write_value_priv(paddr, pte_size, pte, Supervisor, false, false, false)
+  mem_write_value_priv(paddr, pte_size, pte, Supervisor)
 
 // Read a Page Table Entry.
 function read_pte forall 'n, 'n in {4, 8} . (
   paddr    : physaddr,
   pte_size : int('n),
 ) -> MemoryOpResult(bits(8 * 'n)) =
-  mem_read_priv(Read(Data), Supervisor, paddr, pte_size, false, false, false)
+  mem_read_priv(Read(Data), Supervisor, paddr, pte_size)
 
 // PRIVATE
 // 'v is the virtual address size.

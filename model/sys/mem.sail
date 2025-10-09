@@ -46,7 +46,7 @@ function is_aligned_vaddr(Virtaddr(addr) : virtaddr, width : nat1) -> bool =
 
 overload is_aligned_addr = {is_aligned_paddr, is_aligned_vaddr}
 
-function read_kind_of_access(acc : AccessType) -> read_kind =
+function read_kind_of_access(acc : AccessType(ext_access_type)) -> read_kind =
   match acc {
     Read(_) => Read_plain,
     Write(_) => internal_error(__FILE__, __LINE__, "read_kind_of_access() of write"),
@@ -65,7 +65,7 @@ function read_kind_of_access(acc : AccessType) -> read_kind =
     Cache(_) => internal_error(__FILE__, __LINE__, "read_kind_of_access() of cache op"),
   }
 
-function write_kind_of_access(acc : AccessType) -> read_kind =
+function write_kind_of_access(acc : AccessType(ext_access_type)) -> write_kind =
   match acc {
     Read(_) => internal_error(__FILE__, __LINE__, "write_kind_of_access() of write"),
     Write(_) => Write_plain,
@@ -103,7 +103,6 @@ function pmaCheck forall 'n, 0 < 'n <= max_mem_access .
   paddr      : physaddr,
   width      : int('n),
   accTy      : AccessType(ext_access_type),
-  res_or_con : bool,
 )  -> option(ExceptionType) = {
   match matching_pma(pma_regions, paddr, width) {
     None() => {
@@ -119,11 +118,13 @@ function pmaCheck forall 'n, 0 < 'n <= max_mem_access .
           // Check read/write/execute permissions and PMAs.
           let canAccess : bool = match accTy {
             InstructionFetch() => attributes.executable,
-            Read(_)            => attributes.readable & not(res_or_con & attributes.reservability == RsrvNone),
-            Write(_)           => attributes.writable & not(res_or_con & attributes.reservability == RsrvNone),
+            Read(_)            => attributes.readable,
+            Write(_)           => attributes.writable,
             // TODO: Extend AccessType with the specific type of AMO operation. For now we assume all memory
             // supports all AMO operations.
-            ReadWrite(_, _)    => attributes.readable & attributes.writable,
+            AMOAccess(_)       => attributes.readable & attributes.writable,
+            LoadReserved(_)    => attributes.readable & attributes.reservability != RsrvNone,
+            StoreConditional(_) => attributes.writable & attributes.reservability != RsrvNone,
             // TODO: Extend AccessType with a Cache() option. See https://github.com/riscv/sail-riscv/pull/792
             // Cache(Zero)     => attributes.writable & attributes.supports_cbo_zero,
             // Cache(_)        => internal_error(__FILE__, __LINE__,
@@ -161,10 +162,9 @@ function phys_access_check forall 'n, 0 < 'n <= max_mem_access . (
   priv : Privilege,
   paddr : physaddr,
   width : int('n),
-  res_or_con : bool,
 ) -> option(ExceptionType) = {
   let pmpError : option(ExceptionType) = if sys_pmp_count == 0 then None() else pmpCheck(paddr, width, typ, priv);
-  let pmaError : option(ExceptionType) = pmaCheck(paddr, width, typ, res_or_con);
+  let pmaError : option(ExceptionType) = pmaCheck(paddr, width, typ);
   match (pmpError, pmaError) {
     (None(), None())     => None(),
     (Some(e), None())    => Some(e),
@@ -175,20 +175,17 @@ function phys_access_check forall 'n, 0 < 'n <= max_mem_access . (
 
 // dispatches to MMIO regions or physical memory regions depending on physical memory map
 function checked_mem_read forall 'n, 0 < 'n <= max_mem_access . (
-  t : AccessType(ext_access_type),
+  acc : AccessType(ext_access_type),
   priv : Privilege,
   paddr : physaddr,
   width : int('n),
-  aq : bool,
-  rl : bool,
-  res: bool,
   meta : bool,
 ) -> MemoryOpResult((bits(8 * 'n), mem_meta)) =
-  match phys_access_check(t, priv, paddr, width, res) {
+  match phys_access_check(acc, priv, paddr, width) {
     Some(e) => Err(e),
     None() => {
       if   within_mmio_readable(paddr, width)
-      then MemoryOpResult_add_meta(mmio_read(t, paddr, width), default_meta)
+      then MemoryOpResult_add_meta(mmio_read(acc, paddr, width), default_meta)
       else {
         let rk = read_kind_of_access(acc);
         Ok(read_ram(rk, paddr, width, meta))
@@ -205,14 +202,8 @@ val mem_read_priv_meta : forall 'n, 0 < 'n <= max_mem_access . (AccessType(ext_a
 
 // The most generic memory read operation
 function mem_read_priv_meta (typ, priv, paddr, width, meta) = {
-  let result : MemoryOpResult((bits(8 * 'n), mem_meta)) =
-    if (aq | res) & not(is_aligned_addr(paddr, width))
-    then Err(E_Load_Addr_Align())
-    else match (aq, rl, res) {
-      (false, true,  false) => throw(Error_not_implemented("load.rl")),
-      (false, true,  true)  => throw(Error_not_implemented("lr.rl")),
-      (_, _, _)             => checked_mem_read(typ, priv, paddr, width, meta)
-    };
+  // TODO: This previously checked alignment but do we handle that elsewhere?
+  let result = checked_mem_read(typ, priv, paddr, width, meta);
   match result {
     Ok(value, _) => mem_read_callback(to_str(typ), bits_of(paddr), width, value),
     Err(e) => mem_exception_callback(bits_of(paddr), exceptionType_bits(e)),
@@ -233,20 +224,20 @@ function mem_read (typ, paddr, width) =
 
 val mem_write_ea : forall 'n, 0 < 'n <= max_mem_access . (AccessType(ext_access_type), physaddr, int('n)) -> MemoryOpResult(unit)
 function mem_write_ea (t, addr, width) =
-  if (rl | con) & not(is_aligned_addr(addr, width))
-  then Err(E_SAMO_Addr_Align())
-  else Ok(write_ram_ea(write_kind_of_access(t), addr, width))
+  // TODO: This previously checked alignment but do we handle that elsewhere?
+  // If so we can delete this.
+  Ok(write_ram_ea(write_kind_of_access(t), addr, width))
 
 // dispatches to MMIO regions or physical memory regions depending on physical memory map
 function checked_mem_write forall 'n, 0 < 'n <= max_mem_access . (
   paddr : physaddr,
   width : int('n),
   data: bits(8 * 'n),
-  typ : AccessType(ext_access_type),
+  acc : AccessType(ext_access_type),
   priv : Privilege,
   meta: mem_meta,
 ) -> MemoryOpResult(bool) =
-  match phys_access_check(typ, priv, paddr, width, con) {
+  match phys_access_check(acc, priv, paddr, width) {
     Some(e) => Err(e),
     None() => {
       if   within_mmio_writable(paddr, width)
@@ -265,16 +256,13 @@ function checked_mem_write forall 'n, 0 < 'n <= max_mem_access . (
 // data.
 val mem_write_value_priv_meta : forall 'n, 0 < 'n <= max_mem_access . (physaddr, int('n), bits(8 * 'n), AccessType(ext_access_type), Privilege, mem_meta) -> MemoryOpResult(bool)
 function mem_write_value_priv_meta (paddr, width, value, typ, priv, meta) = {
-  if (rl | con) & not(is_aligned_addr(paddr, width))
-  then Err(E_SAMO_Addr_Align())
-  else {
-    let result = checked_mem_write(paddr, width, value, typ, priv, meta);
-    match result {
-      Ok(_) => mem_write_callback(to_str(typ), bits_of(paddr), width, value),
-      Err(e) => mem_exception_callback(bits_of(paddr), exceptionType_bits(e)),
-    };
-    result
-  }
+  // TODO: This previously checked alignment but do we handle that elsewhere?
+  let result = checked_mem_write(paddr, width, value, typ, priv, meta);
+  match result {
+    Ok(_) => mem_write_callback(to_str(typ), bits_of(paddr), width, value),
+    Err(e) => mem_exception_callback(bits_of(paddr), exceptionType_bits(e)),
+  };
+  result
 }
 
 // Memory write with explicit Privilege, implicit AccessType and metadata
