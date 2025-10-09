@@ -46,30 +46,42 @@ function is_aligned_vaddr(Virtaddr(addr) : virtaddr, width : nat1) -> bool =
 
 overload is_aligned_addr = {is_aligned_paddr, is_aligned_vaddr}
 
-function read_kind_of_flags (aq : bool, rl : bool, res : bool) -> read_kind =
-  match (aq, rl, res) {
-    (false, false, false) => Read_plain,
-    (true, false, false)  => internal_error(__FILE__, __LINE__, "Load with acquire semantics should be unreachable"),
-    (true, true, false)   => internal_error(__FILE__, __LINE__, "Load with acquire-release semantics should be unreachable"),
-    (false, false, true)  => Read_RISCV_reserved,
-    (true, false, true)   => Read_RISCV_reserved_acquire,
-    (true, true, true)    => Read_RISCV_reserved_strong_acquire,
-    // This is never called with rl=true and aq=false.
-    (false, true, false)  => internal_error(__FILE__, __LINE__, "Load with release semantics should be unreachable"),
-    (false, true, true)   => internal_error(__FILE__, __LINE__, "Load-reserved with release semantics should be unreachable"),
+function read_kind_of_access(acc : AccessType) -> read_kind =
+  match acc {
+    Read(_) => Read_plain,
+    Write(_) => internal_error(__FILE__, __LINE__, "read_kind_of_access() of write"),
+    AMOAccess(_, aq, rl, _, _) => match (aq, rl) {
+      (false, _)    => Read_RISCV_reserved,
+      (true, false) => Read_RISCV_reserved_acquire,
+      (true, true)  => Read_RISCV_reserved_strong_acquire,
+    },
+    LoadReserved(aq, rl, _) => match (aq, rl) {
+      (false, _)    => Read_RISCV_reserved,
+      (true, false) => Read_RISCV_reserved_acquire,
+      (true, true)  => Read_RISCV_reserved_strong_acquire,
+    },
+    StoreConditional(_) => internal_error(__FILE__, __LINE__, "read_kind_of_access() of store conditional"),
+    InstructionFetch(_) => Read_ifetch,
+    Cache(_) => internal_error(__FILE__, __LINE__, "read_kind_of_access() of cache op"),
   }
 
-function write_kind_of_flags (aq : bool, rl : bool, con : bool) -> write_kind =
-  match (aq, rl, con) {
-    (false, false, false) => Write_plain,
-    (false, true,  false) => internal_error(__FILE__, __LINE__, "Store with release semantics should be unreachable"),
-    (false, false, true)  => Write_RISCV_conditional,
-    (false, true , true)  => Write_RISCV_conditional_release,
-    (true,  true,  false) => internal_error(__FILE__, __LINE__, "Store with aquire-release semantics should be unreachable"),
-    (true,  true , true)  => Write_RISCV_conditional_strong_release,
-    // This is never called with aq=true and rl=false.
-    (true,  false, false) => internal_error(__FILE__, __LINE__, "Store with acquire semantics should be unreachable"),
-    (true,  false, true)  => internal_error(__FILE__, __LINE__, "Store-conditional with acquire semantics should be unreachable"),
+function write_kind_of_access(acc : AccessType) -> read_kind =
+  match acc {
+    Read(_) => internal_error(__FILE__, __LINE__, "write_kind_of_access() of write"),
+    Write(_) => Write_plain,
+    AMOAccess(_, aq, rl, _, _) => match (aq, rl) {
+      (false, _)    => Write_RISCV_conditional,
+      (true, false) => Write_RISCV_conditional_release,
+      (true, true)  => Write_RISCV_conditional_strong_release,
+    },
+    LoadReserved(_) => internal_error(__FILE__, __LINE__, "write_kind_of_access() of load reserved"),
+    StoreConditional(aq, rl, _) => match (aq, rl) {
+      (false, _)    => Write_RISCV_conditional,
+      (true, false) => Write_RISCV_conditional_release,
+      (true, true)  => Write_RISCV_conditional_strong_release,
+    },
+    InstructionFetch(_) => internal_error(__FILE__, __LINE__, "write_kind_of_access() of instruction fetch"),
+    Cache(_) => internal_error(__FILE__, __LINE__, "write_kind_of_access() of cache op") // TODO
   }
 
 function accessFaultFromAccessType(accTy : AccessType(ext_access_type)) -> ExceptionType =
@@ -178,7 +190,7 @@ function checked_mem_read forall 'n, 0 < 'n <= max_mem_access . (
       if   within_mmio_readable(paddr, width)
       then MemoryOpResult_add_meta(mmio_read(t, paddr, width), default_meta)
       else {
-        let rk = read_kind_of_flags(aq, rl, res);
+        let rk = read_kind_of_access(acc);
         Ok(read_ram(rk, paddr, width, meta))
       }
     }
@@ -186,20 +198,20 @@ function checked_mem_read forall 'n, 0 < 'n <= max_mem_access . (
 
 // Atomic accesses can be done to MMIO regions, e.g. in kernel access to device registers.
 
-val mem_read      : forall 'n, 0 < 'n <= max_mem_access . (AccessType(ext_access_type), physaddr, int('n), bool, bool, bool)       -> MemoryOpResult(bits(8 * 'n))
-val mem_read_priv : forall 'n, 0 < 'n <= max_mem_access . (AccessType(ext_access_type), Privilege, physaddr, int('n), bool, bool, bool)       -> MemoryOpResult(bits(8 * 'n))
-val mem_read_meta : forall 'n, 0 < 'n <= max_mem_access . (AccessType(ext_access_type), physaddr, int('n), bool, bool, bool, bool) -> MemoryOpResult((bits(8 * 'n), mem_meta))
-val mem_read_priv_meta : forall 'n, 0 < 'n <= max_mem_access . (AccessType(ext_access_type), Privilege, physaddr, int('n), bool, bool, bool, bool) -> MemoryOpResult((bits(8 * 'n), mem_meta))
+val mem_read      : forall 'n, 0 < 'n <= max_mem_access . (AccessType(ext_access_type), physaddr, int('n)) -> MemoryOpResult(bits(8 * 'n))
+val mem_read_priv : forall 'n, 0 < 'n <= max_mem_access . (AccessType(ext_access_type), Privilege, physaddr, int('n)) -> MemoryOpResult(bits(8 * 'n))
+val mem_read_meta : forall 'n, 0 < 'n <= max_mem_access . (AccessType(ext_access_type), physaddr, int('n), bool) -> MemoryOpResult((bits(8 * 'n), mem_meta))
+val mem_read_priv_meta : forall 'n, 0 < 'n <= max_mem_access . (AccessType(ext_access_type), Privilege, physaddr, int('n), bool) -> MemoryOpResult((bits(8 * 'n), mem_meta))
 
 // The most generic memory read operation
-function mem_read_priv_meta (typ, priv, paddr, width, aq, rl, res, meta) = {
+function mem_read_priv_meta (typ, priv, paddr, width, meta) = {
   let result : MemoryOpResult((bits(8 * 'n), mem_meta)) =
     if (aq | res) & not(is_aligned_addr(paddr, width))
     then Err(E_Load_Addr_Align())
     else match (aq, rl, res) {
       (false, true,  false) => throw(Error_not_implemented("load.rl")),
       (false, true,  true)  => throw(Error_not_implemented("lr.rl")),
-      (_, _, _)             => checked_mem_read(typ, priv, paddr, width, aq, rl, res, meta)
+      (_, _, _)             => checked_mem_read(typ, priv, paddr, width, meta)
     };
   match result {
     Ok(value, _) => mem_read_callback(to_str(typ), bits_of(paddr), width, value),
@@ -208,22 +220,22 @@ function mem_read_priv_meta (typ, priv, paddr, width, aq, rl, res, meta) = {
   result
 }
 
-function mem_read_meta (typ, paddr, width, aq, rl, res, meta) =
-  mem_read_priv_meta(typ, effectivePrivilege(typ, mstatus, cur_privilege), paddr, width, aq, rl, res, meta)
+function mem_read_meta (typ, paddr, width, meta) =
+  mem_read_priv_meta(typ, effectivePrivilege(typ, mstatus, cur_privilege), paddr, width, meta)
 
 // Specialized mem_read_meta that drops the metadata
-function mem_read_priv (typ, priv, paddr, width, aq, rl, res) =
-  MemoryOpResult_drop_meta(mem_read_priv_meta(typ, priv, paddr, width, aq, rl, res, false))
+function mem_read_priv (typ, priv, paddr, width) =
+  MemoryOpResult_drop_meta(mem_read_priv_meta(typ, priv, paddr, width, false))
 
 // Specialized mem_read_priv that operates at the default effective privilege
-function mem_read (typ, paddr, width, aq, rel, res) =
-  mem_read_priv(typ, effectivePrivilege(typ, mstatus, cur_privilege), paddr, width, aq, rel, res)
+function mem_read (typ, paddr, width) =
+  mem_read_priv(typ, effectivePrivilege(typ, mstatus, cur_privilege), paddr, width)
 
-val mem_write_ea : forall 'n, 0 < 'n <= max_mem_access . (physaddr, int('n), bool, bool, bool) -> MemoryOpResult(unit)
-function mem_write_ea (addr, width, aq, rl, con) =
+val mem_write_ea : forall 'n, 0 < 'n <= max_mem_access . (AccessType(ext_access_type), physaddr, int('n)) -> MemoryOpResult(unit)
+function mem_write_ea (t, addr, width) =
   if (rl | con) & not(is_aligned_addr(addr, width))
   then Err(E_SAMO_Addr_Align())
-  else Ok(write_ram_ea(write_kind_of_flags(aq, rl, con), addr, width))
+  else Ok(write_ram_ea(write_kind_of_access(t), addr, width))
 
 // dispatches to MMIO regions or physical memory regions depending on physical memory map
 function checked_mem_write forall 'n, 0 < 'n <= max_mem_access . (
@@ -233,9 +245,6 @@ function checked_mem_write forall 'n, 0 < 'n <= max_mem_access . (
   typ : AccessType(ext_access_type),
   priv : Privilege,
   meta: mem_meta,
-  aq : bool,
-  rl : bool,
-  con : bool,
 ) -> MemoryOpResult(bool) =
   match phys_access_check(typ, priv, paddr, width, con) {
     Some(e) => Err(e),
@@ -243,7 +252,7 @@ function checked_mem_write forall 'n, 0 < 'n <= max_mem_access . (
       if   within_mmio_writable(paddr, width)
       then mmio_write(paddr, width, data)
       else {
-        let wk = write_kind_of_flags(aq, rl, con);
+        let wk = write_kind_of_access(acc);
         Ok(write_ram(wk, paddr, width, data, meta))
       }
     }
@@ -254,12 +263,12 @@ function checked_mem_write forall 'n, 0 < 'n <= max_mem_access . (
 // Memory write with an explicit metadata value.  Metadata writes are
 // currently assumed to have the same alignment constraints as their
 // data.
-val mem_write_value_priv_meta : forall 'n, 0 < 'n <= max_mem_access . (physaddr, int('n), bits(8 * 'n), AccessType(ext_access_type), Privilege, mem_meta, bool, bool, bool) -> MemoryOpResult(bool)
-function mem_write_value_priv_meta (paddr, width, value, typ, priv, meta, aq, rl, con) = {
+val mem_write_value_priv_meta : forall 'n, 0 < 'n <= max_mem_access . (physaddr, int('n), bits(8 * 'n), AccessType(ext_access_type), Privilege, mem_meta) -> MemoryOpResult(bool)
+function mem_write_value_priv_meta (paddr, width, value, typ, priv, meta) = {
   if (rl | con) & not(is_aligned_addr(paddr, width))
   then Err(E_SAMO_Addr_Align())
   else {
-    let result = checked_mem_write(paddr, width, value, typ, priv, meta, aq, rl, con);
+    let result = checked_mem_write(paddr, width, value, typ, priv, meta);
     match result {
       Ok(_) => mem_write_callback(to_str(typ), bits_of(paddr), width, value),
       Err(e) => mem_exception_callback(bits_of(paddr), exceptionType_bits(e)),
@@ -269,20 +278,20 @@ function mem_write_value_priv_meta (paddr, width, value, typ, priv, meta, aq, rl
 }
 
 // Memory write with explicit Privilege, implicit AccessType and metadata
-val mem_write_value_priv : forall 'n, 0 < 'n <= max_mem_access . (physaddr, int('n), bits(8 * 'n), Privilege, bool, bool, bool) -> MemoryOpResult(bool)
-function mem_write_value_priv (paddr, width, value, priv, aq, rl, con) =
-  mem_write_value_priv_meta(paddr, width, value, Write(default_write_acc), priv, default_meta, aq, rl, con)
+val mem_write_value_priv : forall 'n, 0 < 'n <= max_mem_access . (physaddr, int('n), bits(8 * 'n), Privilege) -> MemoryOpResult(bool)
+function mem_write_value_priv (paddr, width, value, priv) =
+  mem_write_value_priv_meta(paddr, width, value, Write(default_write_acc), priv, default_meta)
 
 // Memory write with explicit metadata and AccessType, implicit and Privilege
-val mem_write_value_meta : forall 'n, 0 < 'n <= max_mem_access . (physaddr, int('n), bits(8 * 'n), ext_access_type, mem_meta, bool, bool, bool) -> MemoryOpResult(bool)
-function mem_write_value_meta (paddr, width, value, ext_acc, meta, aq, rl, con) = {
+val mem_write_value_meta : forall 'n, 0 < 'n <= max_mem_access . (physaddr, int('n), bits(8 * 'n), ext_access_type, mem_meta) -> MemoryOpResult(bool)
+function mem_write_value_meta (paddr, width, value, ext_acc, meta) = {
   let typ = Write(ext_acc);
   let ep = effectivePrivilege(typ, mstatus, cur_privilege);
-  mem_write_value_priv_meta(paddr, width, value, typ, ep, meta, aq, rl, con)
+  mem_write_value_priv_meta(paddr, width, value, typ, ep, meta)
 }
 
 // Memory write with default AccessType, Privilege, and metadata
-val mem_write_value : forall 'n, 0 < 'n <= max_mem_access . (physaddr, int('n), bits(8 * 'n), bool, bool, bool) -> MemoryOpResult(bool)
-function mem_write_value (paddr, width, value, aq, rl, con) = {
-  mem_write_value_meta(paddr, width, value, default_write_acc, default_meta, aq, rl, con)
+val mem_write_value : forall 'n, 0 < 'n <= max_mem_access . (physaddr, int('n), bits(8 * 'n)) -> MemoryOpResult(bool)
+function mem_write_value (paddr, width, value) = {
+  mem_write_value_meta(paddr, width, value, default_write_acc, default_meta)
 }

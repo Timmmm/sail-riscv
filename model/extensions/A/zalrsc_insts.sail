@@ -37,8 +37,7 @@ mapping clause encdec = LOADRES(aq, rl, rs1, width, rd)
 function clause execute LOADRES(aq, rl, rs1, width, rd) = {
   // This is checked during decoding.
   assert(width <= xlen_bytes);
-
-  match vmem_read(rs1, zeros(), width, Read(Data), aq, aq & rl, true) {
+  match vmem_read(rs1, zeros(), width, LoadReserved(aq, rl, Data)) {
     Ok(data) => {
       X(rd) = sign_extend(data);
       RETIRE_SUCCESS
@@ -66,7 +65,7 @@ function clause execute STORECON(aq, rl, rs2, rs1, width, rd) = {
   // normal non-rmem case
   // RMEM: SC is allowed to succeed (but might fail later)
   let data = X(rs2)[width * 8 - 1 .. 0];
-  match vmem_write(rs1, zeros(), width, data, Write(Data), aq & rl, rl, true) {
+  match vmem_write(rs1, zeros(), width, data, StoreConditional(aq, rl, Data)) {
     Ok(b) => {
       X(rd) = zero_extend(bool_bits(~(b)));
       cancel_reservation();

@@ -11,10 +11,16 @@
 
 function pmpCheckRWX(ent : Pmpcfg_ent, acc : AccessType(ext_access_type)) -> bool =
   match acc {
-    Read(_)      => ent[R] == 0b1,
-    Write(_)     => ent[W] == 0b1,
-    ReadWrite(_) => ent[R] == 0b1 & ent[W] == 0b1,
-    InstructionFetch() => ent[X] == 0b1,
+    Read(_)             => ent[R] == 0b1,
+    Write(_)            => ent[W] == 0b1,
+    AMOAccess(_)        => ent[R] == 0b1 & ent[W] == 0b1,
+    LoadReserved(_)     => ent[R] == 0b1,
+    StoreConditional(_) => ent[W] == 0b1,
+    InstructionFetch()  => ent[X] == 0b1,
+    Cache(Zero)         => ent[W] == 0b1,
+    // TODO: Shouldn't this just be ent[W] | ent[R]?
+    Cache(_)            => internal_error(__FILE__, __LINE__,
+                                          "Invalid CacheAccessType; Inval, Clean and Flush check Read/Write permissions."),
   }
 
 
@@ -82,10 +88,13 @@ function pmpMatchAddr(
 
 function accessToFault(acc : AccessType(ext_access_type)) -> ExceptionType =
   match acc {
-    Read(_)      => E_Load_Access_Fault(),
-    Write(_)     => E_SAMO_Access_Fault(),
-    ReadWrite(_) => E_SAMO_Access_Fault(),
-    InstructionFetch() => E_Fetch_Access_Fault(),
+    Read(_)             => E_Load_Access_Fault(),
+    Write(_)            => E_SAMO_Access_Fault(),
+    AMOAccess(_)        => E_SAMO_Access_Fault(),
+    LoadReserved(_)     => E_Load_Access_Fault(),
+    StoreConditional(_) => E_SAMO_Access_Fault(),
+    InstructionFetch()  => E_Fetch_Access_Fault(),
+    Cache(_)            => E_SAMO_Access_Fault(),
   }
 
 function pmpCheck forall 'n, 0 < 'n <= max_mem_access . (

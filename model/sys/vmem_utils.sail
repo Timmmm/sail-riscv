@@ -117,10 +117,10 @@ function check_misaligned(vaddr : virtaddr, width : word_width) -> bool = {
 }
 
 val vmem_read_addr : forall 'width, is_mem_width('width).
-  (virtaddr, xlenbits, int('width), AccessType(ext_access_type), bool, bool, bool)
+  (virtaddr, xlenbits, int('width), AccessType(ext_access_type))
   -> result(bits(8 * 'width), ExecutionResult)
 
-function vmem_read_addr(vaddr, offset, width, acc, aq, rl, res) = {
+function vmem_read_addr(vaddr, offset, width, acc) = {
   // TODO: Rationalize to use a single alignment definition if possible.
   if res then {
     // "LR faults like a normal load, even though it's in the AMO major opcode space."
@@ -149,7 +149,7 @@ function vmem_read_addr(vaddr, offset, width, acc, aq, rl, res) = {
     match translateAddr(Virtaddr(vaddr), acc) {
       Err(e, _) => return Err(Memory_Exception(Virtaddr(vaddr), e)),
 
-      Ok(paddr, _) => match mem_read(acc, paddr, bytes, aq, rl, res) {
+      Ok(paddr, _) => match mem_read(acc, paddr, bytes) {
         Err(e) => return Err(Memory_Exception(Virtaddr(vaddr), e)),
 
         Ok(v) => {
@@ -173,10 +173,10 @@ function vmem_read_addr(vaddr, offset, width, acc, aq, rl, res) = {
 }
 
 val vmem_write_addr : forall 'width, is_mem_width('width).
-  (virtaddr, int('width), bits(8 * 'width), AccessType(ext_access_type), bool, bool, bool)
+  (virtaddr, int('width), bits(8 * 'width), AccessType(ext_access_type))
   -> result(bool, ExecutionResult)
 
-function vmem_write_addr(vaddr, width, data, acc, aq, rl, res) = {
+function vmem_write_addr(vaddr, width, data, acc) = {
   if   check_misaligned(vaddr, width)
   then return Err(Memory_Exception(vaddr, E_SAMO_Addr_Align()));
 
@@ -203,12 +203,12 @@ function vmem_write_addr(vaddr, width, data, acc, aq, rl, res) = {
         // If res is true, the load should be aligned, and this loop should only execute once
         if res & not(match_reservation(bits_of(paddr))) then {
           write_success = false
-        } else match mem_write_ea(paddr, bytes, aq, rl, res) {
+        } else match mem_write_ea(paddr, bytes) {
           Err(e) => return Err(Memory_Exception(Virtaddr(vaddr), e)),
 
           Ok(()) => {
             let write_value = data[(8 * (offset + 1) * bytes) - 1 .. 8 * offset * bytes];
-            match mem_write_value(paddr, bytes, write_value, aq, rl, res) {
+            match mem_write_value(paddr, bytes, write_value) {
               Err(e) => return Err(Memory_Exception(Virtaddr(vaddr), e)),
               Ok(s)  => write_success = write_success & s,
             }
@@ -228,10 +228,10 @@ function vmem_write_addr(vaddr, width, data, acc, aq, rl, res) = {
 }
 
 val vmem_read : forall 'width, is_mem_width('width).
-  (regidx, xlenbits, int('width), AccessType(ext_access_type), bool, bool, bool)
+  (regidx, xlenbits, int('width), AccessType(ext_access_type))
   -> result(bits(8 * 'width), ExecutionResult)
 
-function vmem_read(rs, offset, width, acc, aq, rl, res) = {
+function vmem_read(rs, offset, width, acc) = {
   // Get the address, X(rs1) + offset.
   // Extensions might perform additional checks on address validity.
   let vaddr : virtaddr = match ext_data_get_addr(rs, offset, acc, width) {
@@ -239,14 +239,14 @@ function vmem_read(rs, offset, width, acc, aq, rl, res) = {
     Ext_DataAddr_Error(e)  => return Err(Ext_DataAddr_Check_Failure(e)),
   };
 
-  vmem_read_addr(vaddr, offset, width, acc, aq, rl, res)
+  vmem_read_addr(vaddr, offset, width, acc)
 }
 
 val vmem_write : forall 'width, is_mem_width('width).
-  (regidx, xlenbits, int('width), bits(8 * 'width), AccessType(ext_access_type), bool, bool, bool)
+  (regidx, xlenbits, int('width), bits(8 * 'width), AccessType(ext_access_type))
   -> result(bool, ExecutionResult)
 
-function vmem_write(rs_addr, offset, width, data, acc, aq, rl, res) = {
+function vmem_write(rs_addr, offset, width, data, acc) = {
   // Get the address, X(rs_addr) + offset.
   // Extensions might perform additional checks on address validity.
   let vaddr : virtaddr = match ext_data_get_addr(rs_addr, offset, acc, width) {
@@ -254,5 +254,5 @@ function vmem_write(rs_addr, offset, width, data, acc, aq, rl, res) = {
     Ext_DataAddr_Error(e)  => return Err(Ext_DataAddr_Check_Failure(e)),
   };
 
-  vmem_write_addr(vaddr, width, data, acc, aq, rl, res)
+  vmem_write_addr(vaddr, width, data, acc)
 }

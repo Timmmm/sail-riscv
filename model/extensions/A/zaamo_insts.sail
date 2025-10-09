@@ -31,7 +31,29 @@ function amo_encoding_valid(width : word_width_wide, op : amoop, Regidx(rs2) : r
     width <= xlen_bytes | (op == AMOCAS & width <= xlen_bytes * 2 & rs2[0] == bitzero & rd[0] == bitzero)
   ))
 
-// *****************************************************************
+function amo_level(op : amoop, width : word_width_wide) -> AmoLevel =
+  match op {
+    AMOSWAP => AMOSwap,
+    AMOXOR => AMOLogical,
+    AMOAND => AMOLogical,
+    AMOOR => AMOLogical,
+    AMOADD => AMOArithmetic,
+    AMOMIN => AMOArithmetic,
+    AMOMAX => AMOArithmetic,
+    AMOMINU => AMOArithmetic,
+    AMOMAXU => AMOArithmetic,
+    AMOCAS => match width {
+      // There's no PMA defined for byte/half CAS with Zabha, but
+      // AMOCASW seems reasonable since it is a prerequisite.
+      1 => AMOCASW,
+      2 => AMOCASW,
+      4 => AMOCASW,
+      8 => AMOCASD,
+      16 => AMOCASQ,
+    },
+  }
+
+// ******************************************************************
 
 union clause instruction = AMO : (amoop, bool, bool, regidx, regidx, word_width_wide, regidx)
 
@@ -61,24 +83,28 @@ function clause execute AMO(op, aq, rl, rs2, rs1, width, rd) = {
   // This is checked during decoding.
   assert(width <= xlen_bytes * 2);
 
+  let level = amo_level(op, width);
+
+  let access_type = AMOAccess(level, aq, rl, Data, Data);
+
   // Get the address, X(rs1) (no offset).
   // Some extensions perform additional checks on address validity.
-  match ext_data_get_addr(rs1, zeros(), ReadWrite(Data, Data), width) {
+  match ext_data_get_addr(rs1, zeros(), access_type, width) {
     Ext_DataAddr_Error(e)  => Ext_DataAddr_Check_Failure(e),
     Ext_DataAddr_OK(vaddr) => {
       if not(is_aligned_addr(vaddr, width))
       then Memory_Exception(vaddr, E_SAMO_Addr_Align())
-      else match translateAddr(vaddr, ReadWrite(Data, Data)) {
+      else match translateAddr(vaddr, access_type) {
         Err(e, _) => Memory_Exception(vaddr, e),
         Ok(addr, _) => {
           // AMOCAS.D for RV32 and AMOCAS.Q for RV64 operate on a pair of
           // registers. When the first register of a register pair is
           // x0, then both halves of the pair read/write as zero.
           let rs2_val : bits('width * 8) = if width <= xlen_bytes then trunc(X(rs2)) else trunc(X_pair(rs2));
-          match mem_write_ea(addr, width, aq & rl, rl, true) {
+          match mem_write_ea(access_type, addr, width) {
             Err(e) => Memory_Exception(vaddr, e),
             Ok(_) => {
-              match mem_read(ReadWrite(Data, Data), addr, width, aq, aq & rl, true) {
+              match mem_read(access_type, addr, width) {
                 Err(e)     => Memory_Exception(vaddr, e),
                 Ok(loaded) => {
                   let result : bits('width * 8) =
@@ -104,7 +130,7 @@ function clause execute AMO(op, aq, rl, rs2, rs1, width, rd) = {
                     else X_pair(rd) = sign_extend(loaded);
                     RETIRE_SUCCESS
                   } else {
-                    match mem_write_value(addr, width, sign_extend(result), aq & rl, rl, true) {
+                    match mem_write_value(access_type, addr, width, sign_extend(result)) {
                       Ok(true)  => {
                         if width <= xlen_bytes
                         then X(rd) = sign_extend(loaded)
