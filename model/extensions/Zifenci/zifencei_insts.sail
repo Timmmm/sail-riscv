@@ -15,11 +15,13 @@ function clause currentlyEnabled(Ext_Zifencei) = hartSupports(Ext_Zifencei)
 
 union clause instruction = FENCEI : unit
 
-mapping clause encdec = FENCEI()
-  <-> 0b000000000000 @ 0b00000 @ 0b001 @ 0b00000 @ 0b0001111
-  when currentlyEnabled(Ext_Zifencei)
+union clause ast = FENCEI : (bits(12), regidx, regidx)
+
+mapping clause encdec = FENCEI(imm, rs, rd)
+  <-> imm : bits(12) @ encdec_reg(rs) @ 0b001 @ encdec_reg(rd) @ 0b0001111
 
 // fence.i is a nop for the memory model
 function clause execute FENCEI() = { /* __barrier(Barrier_RISCV_i); */ RETIRE_SUCCESS }
 
-mapping clause assembly = FENCEI() <-> "fence.i"
+mapping clause assembly = FENCEI(imm, rs, rd) <-> "fence.i"
+  when imm == zeros() & rs == zreg & rd == zreg
