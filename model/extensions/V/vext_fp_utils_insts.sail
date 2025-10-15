@@ -526,13 +526,9 @@ function riscv_f64Rsqrte7(rm : bits_rm, v : bits_D) -> (bits_fflags, bits_D) = {
 }
 
 val recip7 : forall 'm, 'm in {16, 32, 64}. (bits('m), bits(3), bool) -> (bool, bits_D)
-function recip7 (v, rm_3b, sub) = {
-  let (sig, exp, sign, e, s) : (bits(64), bits(64), bits(1), {5, 8, 11}, {10, 23, 52}) = match 'm {
-    16 => (zero_extend(64, v[9 .. 0]), zero_extend(64, v[14 .. 10]), [v[15]], 5, 10),
-    32 => (zero_extend(64, v[22 .. 0]), zero_extend(64, v[30 .. 23]), [v[31]], 8, 23),
-    64 => (zero_extend(64, v[51 .. 0]), zero_extend(64, v[62 .. 52]), [v[63]], 11, 52)
-  };
-  let table : vector(128, int) = [
+function recip7 (v, rm_3b, is_subnormal) = {
+  // sig_out from the "vfrec7.v common-case lookup table contents" table in the spec.
+  let sig_out_lut : vector(128, range(0, 127)) = [
       127, 125, 123, 121, 119, 117, 116, 114,
       112, 110, 109, 107, 105, 104, 102, 100,
       99, 97, 96, 94, 93, 91, 90, 88,
@@ -550,32 +546,31 @@ function recip7 (v, rm_3b, sub) = {
       8, 8, 7, 7, 6, 5, 5, 4,
       4, 3, 3, 2, 2, 1, 1, 0];
 
-  let nr_leadingzeros = count_leading_zeros(sig[s - 1 .. 0]);
-  assert(nr_leadingzeros >= 0);
-  let (normalized_exp, normalized_sig) =
-      if sub then {
-        (to_bits_unsafe(64, (0 - nr_leadingzeros)), zero_extend(64, sig[(s - 1) .. 0] << (1 + nr_leadingzeros)))
+  let v = float_decompose(v);
+
+  let (normalized_exp, normalized_mant) =
+      if is_subnormal then {
+        let nr_leadingzeros = count_leading_zeros(v.mantissa);
+        (zeros() - nr_leadingzeros, zero_extend(64, v.mantissa @ zeros(1 + nr_leadingzeros)))
       } else {
-        (exp, sig)
+        (v.exp, v.mantissa)
       };
 
-  let idx : nat = match 'm {
-    16 => unsigned(normalized_sig[9 .. 3]),
-    32 => unsigned(normalized_sig[22 .. 16]),
-    64 => unsigned(normalized_sig[51 .. 45])
-  };
-  assert(idx >= 0 & idx < 128);
-  let mid_exp = to_bits_unsafe(e, 2 * (2 ^ (e - 1) - 1) - 1 - signed(normalized_exp));
-  let mid_sig = to_bits_unsafe(s, table[(127 - idx)]) << (s - 7);
+  let normalized_mant_top_5_bits = normalized_mant[length(normalised_mant) - 1 .. length(normalised_mant) - 5];
+
+  let idx = unsigned(ormalized_mant_top_5_bits);
+
+  let mid_exp = to_bits(e, 2 * (2 ^ (e - 1) - 1) - 1 - signed(normalized_exp));
+  let mid_sig = to_bits(s, table[(127 - idx)]) << (s - 7);
 
   let (out_exp, out_sig)=
-      if mid_exp == zeros(e) then {
+      if mid_exp == zeros() then {
         (mid_exp, mid_sig >> 1 | 0b1 @ zeros(s - 1))
-      } else if mid_exp == ones(e) then {
-        (zeros(e), mid_sig >> 2 | 0b01 @ zeros(s - 2))
+      } else if mid_exp == ones() then {
+        (zeros(), mid_sig >> 2 | 0b01 @ zeros(s - 2))
       } else (mid_exp, mid_sig);
 
-  if sub & nr_leadingzeros > 1 then {
+  if is_subnormal & nr_leadingzeros > 1 then {
       if (rm_3b == 0b001 | rm_3b == 0b010 & sign == 0b0 | rm_3b == 0b011 & sign == 0b1) then {
         (true, zero_extend(64, sign @ ones(e - 1) @ 0b0 @ ones(s)))
       }
