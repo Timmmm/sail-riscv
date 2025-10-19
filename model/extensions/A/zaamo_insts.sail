@@ -130,8 +130,7 @@ function clause execute AMO(op, aq, rl, rs2, rs1, width, rd) = {
                     else X_pair(rd) = sign_extend(loaded);
                     RETIRE_SUCCESS
                   } else {
-                    // TODO: Add access type.
-                    match mem_write_value(/*access_type, */addr, width, sign_extend(result)) {
+                    match mem_write_value(access_type, addr, width, sign_extend(result)) {
                       Ok(true)  => {
                         if width <= xlen_bytes
                         then X(rd) = sign_extend(loaded)

@@ -271,15 +271,15 @@ function mem_write_value_priv (paddr, width, value, priv) =
   mem_write_value_priv_meta(paddr, width, value, Write(default_write_acc), priv, default_meta)
 
 // Memory write with explicit metadata and AccessType, implicit and Privilege
-val mem_write_value_meta : forall 'n, 0 < 'n <= max_mem_access . (physaddr, int('n), bits(8 * 'n), ext_access_type, mem_meta) -> MemoryOpResult(bool)
-function mem_write_value_meta (paddr, width, value, ext_acc, meta) = {
+val mem_write_value_meta : forall 'n, 0 < 'n <= max_mem_access . (AccessType(ext_access_type), physaddr, int('n), bits(8 * 'n), mem_meta) -> MemoryOpResult(bool)
+function mem_write_value_meta (typ, paddr, width, value, meta) = {
   let typ = Write(ext_acc);
   let ep = effectivePrivilege(typ, mstatus, cur_privilege);
   mem_write_value_priv_meta(paddr, width, value, typ, ep, meta)
 }
 
-// Memory write with default AccessType, Privilege, and metadata
-val mem_write_value : forall 'n, 0 < 'n <= max_mem_access . (physaddr, int('n), bits(8 * 'n)) -> MemoryOpResult(bool)
-function mem_write_value (paddr, width, value) = {
-  mem_write_value_meta(paddr, width, value, default_write_acc, default_meta)
+// Memory write with default metadata, Privilege, and metadata
+val mem_write_value : forall 'n, 0 < 'n <= max_mem_access . (AccessType(ext_access_type), physaddr, int('n), bits(8 * 'n)) -> MemoryOpResult(bool)
+function mem_write_value (typ, paddr, width, value) = {
+  mem_write_value_meta(typ, paddr, width, value, default_meta)
 }

@@ -91,8 +91,7 @@ function privLevel_to_str (p : Privilege) -> string =
 
 overload to_str = {privLevel_to_str}
 
-
-/* memory access types */
+// memory access types
 
 enum CacheAccessType = {
   CleanFlush,
