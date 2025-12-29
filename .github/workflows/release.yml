@@ -29,17 +29,20 @@ jobs:
       matrix:
         include:
           - name: Linux-x86_64
-            os: ubuntu-latest
+            os: ubuntu-24.04
             container: rockylinux:8.9.20231119
 
           - name: Linux-aarch64
             os: ubuntu-24.04-arm
             container: rockylinux:8.9.20231119
 
-          # TODO: Mac. We need a Mac binary release of the Sail compiler first.
-          # - name: mac-arm64
-          #   os: macos-latest
-          #   container: ""
+          - name: mac-arm64
+            os: macos-26
+            container: ""
+
+          - name: Windows-x86_64
+            os: windows-2025
+            container: ""
 
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.container }}
@@ -72,11 +75,19 @@ jobs:
           curl --location --output sail.tar.gz https://github.com/rems-project/sail/releases/download/$SAIL_VERSION-linux-binary/sail-$(uname)-$(arch).tar.gz
           tar --directory=/usr/local --strip-components=1 --extract --file sail.tar.gz
 
-      # TODO: Mac
-      # - name: Install dependencies (Mac)
-      #   if: startsWith(matrix.os, 'macos')
-      #   run: |
-      #     brew install --force --overwrite ...
+      - name: Install dependencies (Mac)
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          brew install --force --overwrite ...
+          curl --location --output sail.tar.gz https://github.com/rems-project/sail/releases/download/$SAIL_VERSION-linux-binary/sail-$(uname)-$(arch).tar.gz
+          tar --directory=/usr/local --strip-components=1 --extract --file sail.tar.gz
+
+      - name: Install dependencies (Windows)
+        if: startsWith(matrix.os, 'windows')
+        run: |
+          choco install --force --overwrite ...
+          curl --location --output sail.tar.gz https://github.com/rems-project/sail/releases/download/$SAIL_VERSION-linux-binary/sail-$(uname)-$(arch).tar.gz
+          tar --directory=/usr/local --strip-components=1 --extract --file sail.tar.gz
 
       - uses: actions/checkout@v6
 
@@ -104,8 +115,8 @@ jobs:
             build/model/sail_riscv_model.json
             build/model/sail_riscv_html.tgz
 
-      - name: "Generate attestations (Linux-aarch64)"
-        if: matrix.name == 'Linux-aarch64'
+      - name: "Generate attestations (Other)"
+        if: matrix.name != 'Linux-x86_64'
         uses: actions/attest-build-provenance@v3
         with:
           subject-path: |
@@ -136,6 +147,8 @@ jobs:
           files: |
             release-Linux-x86_64/sail-riscv-Linux-x86_64.tar.gz
             release-Linux-aarch64/sail-riscv-Linux-aarch64.tar.gz
+            release-mac-aarch64/sail-riscv-mac-aarch64.tar.gz
+            release-Windows-x86_64/sail-riscv-Windows-x86_64.tar.gz
             release-Linux-x86_64/model/sail_riscv_model.json
             release-Linux-x86_64/model/sail_riscv_html.tgz
           fail_on_unmatched_files: true
