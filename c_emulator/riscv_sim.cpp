@@ -47,6 +47,8 @@ std::optional<rvfi_handler> rvfi;
 
 // The address of the HTIF tohost port, if it is enabled.
 std::optional<uint64_t> htif_tohost_address;
+// Ditto for AXI UART Lite.
+std::optional<uint64_t> axi_uart_lite_address;
 
 rvfi_callbacks rvfi_cbs;
 
@@ -361,13 +363,17 @@ uint64_t load_sail(ModelImpl &model, const std::string &filename, bool main_file
     // Only scan for test-signature/htif symbols in the main ELF file.
 
     const auto &tohost = symbols.find("tohost");
-    if (tohost == symbols.end()) {
-      fprintf(stderr, "Unable to locate tohost symbol; disabling HTIF.\n");
-      htif_tohost_address = std::nullopt;
-    } else {
+    if (tohost != symbols.end()) {
       htif_tohost_address = tohost->second;
       fprintf(stdout, "HTIF located at 0x%0" PRIx64 "\n", *htif_tohost_address);
     }
+
+    const auto &axi_uart_lite = symbols.find("axi_uart_lite");
+    if (axi_uart_lite != symbols.end()) {
+      axi_uart_lite_address = axi_uart_lite->second;
+      fprintf(stdout, "AXI UART Lite located at 0x%0" PRIx64 "\n", *axi_uart_lite_address);
+    }
+
     // Locate test-signature locations if any.
     const auto &begin_sig = symbols.find("begin_signature");
     if (begin_sig != symbols.end()) {
@@ -424,6 +430,9 @@ void init_sail(ModelImpl &model, uint64_t elf_entry, const char *config_file) {
   model.zset_pc_reset_address(elf_entry);
   if (htif_tohost_address.has_value()) {
     model.zenable_htif(*htif_tohost_address);
+  }
+  if (axi_uart_lite_address.has_value()) {
+    model.zenable_axi_uart_lite(*axi_uart_lite_address);
   }
   model.zinit_model(config_file != nullptr ? config_file : "");
   model.zinit_boot_requirements(UNIT);

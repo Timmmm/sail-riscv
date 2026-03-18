@@ -65,6 +65,8 @@ sys {
   files
     sys/sys_reservation.sail,
     sys/sys_control.sail,
+    sys/platform_terminal.sail,
+    sys/axi_uart_lite.sail,
     sys/platform.sail,
     sys/pma.sail,
     sys/mem.sail,

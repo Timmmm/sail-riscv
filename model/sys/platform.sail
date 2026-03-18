@@ -206,11 +206,6 @@ function tick_clock() -> unit = {
   clint_dispatch(false)
 }
 
-// Basic terminal character I/O.
-
-val plat_term_write = impure {cpp: "plat_term_write", lem: "plat_term_write"} : bits(8) -> unit
-val plat_term_read  = impure {cpp: "plat_term_read", lem: "plat_term_read"}  : unit -> bits(8)
-
 // Spike's HTIF device interface, which multiplexes the above MMIO devices.
 
 bitfield htif_cmd : bits(64) = {
@@ -345,6 +340,8 @@ function mmio_read forall 'n, 0 < 'n <= max_mem_access . (access : MemoryAccessT
   then clint_load(access, paddr, width)
   else if within_htif_readable(paddr, width)
   then htif_load(access, paddr, width)
+  else if within_uart_readable(paddr, width)
+  then uart_load(access, paddr, width)
   else Err(accessFaultFromAccessType(access))
 
 function mmio_write forall 'n, 0 < 'n <= max_mem_access . (paddr : physaddr, width : int('n), data: bits(8 * 'n)) -> MemoryOpResult(bool) =
@@ -352,4 +349,6 @@ function mmio_write forall 'n, 0 < 'n <= max_mem_access . (paddr : physaddr, wid
   then clint_store(paddr, width, data)
   else if within_htif_writable(paddr, width)
   then htif_store(paddr, width, data)
+  else if within_uart_writable(paddr, width)
+  then uart_store(paddr, width, data)
   else Err(E_SAMO_Access_Fault())
