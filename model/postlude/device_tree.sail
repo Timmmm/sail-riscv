@@ -119,13 +119,19 @@ private function generate_dts_memories(pmas : list(PMA_Region)) -> string =
     }
   }
 
+// Convert an address and size to a DTS `<addr_high addr_low size_high size_low>`
+// format (this assumes 2 "cells" (32-bit values) for the address and size.
+private function dts_address_and_size(base : physaddrbits, size : physaddrbits) -> string = {
+  let base_hi = unsigned(base >> 32);
+  let base_lo = unsigned(base[31 .. 0]);
+  let size_hi = unsigned(size >> 32);
+  let size_lo = unsigned(size[31 .. 0]);
+
+  "<" ^ hex_str(base_hi) ^ " " ^ hex_str(base_lo) ^ " " ^ hex_str(size_hi) ^ " " ^ hex_str(size_lo) ^ ">"
+}
+
 function generate_dts() -> string = {
   let clock_freq : nat = config platform.clock_frequency;
-
-  let clint_base_hi = unsigned(plat_clint_base >> 32);
-  let clint_base_lo = unsigned(plat_clint_base[31 .. 0]);
-  let clint_size_hi = unsigned(plat_clint_size >> 32);
-  let clint_size_lo = unsigned(plat_clint_size[31 .. 0]);
 
   // `hex_str` is used for the unit-addresses of the `memory@` and `clint@` nodes
   // instead of `hex_bits_str` since they cannot have leading zeros.  These addresses
@@ -175,8 +181,15 @@ function generate_dts() -> string = {
 ^ "    clint@" ^ string_drop(hex_str(unsigned(plat_clint_base)), 2) ^ " {\n"
 ^ "      compatible = \"riscv,clint0\";\n"
 ^ "      interrupts-extended = <&CPU0_intc 3 &CPU0_intc 7>;\n"
-^ "      reg = <" ^ hex_str(clint_base_hi) ^ " " ^ hex_str(clint_base_lo)
-^ " " ^ hex_str(clint_size_hi) ^ " " ^ hex_str(clint_size_lo) ^ ">;\n"
+^ "      reg = " ^ dts_address_and_size(plat_clint_base, plat_clint_size) ^ ";\n"
+^ "    };\n"
+^ "    plic@" ^ string_drop(hex_str(unsigned(plat_plic_base)), 2) ^ " {\n"
+^ "      compatible = \"riscv,plic0\";\n"
+^ "      interrupt-controller;\n"
+^ "      #interrupt-cells = <1>;\n"
+^ "      reg = " ^ dts_address_and_size(plat_plic_base, plat_plic_size) ^ ";\n"
+^ "      riscv,ndev = <" ^ dec_str(plic_nsrc) ^ ">;\n"
+^ "      interrupts-extended = <&CPU0_intc 11 &CPU0_intc 9>;\n"
 ^ "    };\n"
 ^ "  };\n"
 ^ "  htif {\n"

@@ -34,6 +34,18 @@ let plat_enable_misaligned_access : bool = config memory.misaligned.supported
 let plat_clint_base : physaddrbits = to_bits_checked(config platform.clint.base : int)
 let plat_clint_size : physaddrbits = to_bits_checked(config platform.clint.size : int)
 
+let plat_plic_base : physaddrbits = to_bits_checked(config platform.plic.base : int)
+let plat_plic_size : physaddrbits = zero_extend(0x4000000)
+
+// Number of input sources NOT including the reserved ID 0.
+type plic_nsrc : Int = config platform.plic.nsrc
+let plic_nsrc = sizeof(plic_nsrc)
+constraint 0 <= plic_nsrc <= 1023
+// Number of output contexts. This model only uses 0 for MEI and 1 for SEI.
+type plic_nctx : Int = config platform.plic.nctx
+let plic_nctx = sizeof(plic_nctx)
+constraint 0 <= plic_nctx <= 15872
+
 let plat_insns_per_tick : nat1 = config platform.instructions_per_tick
 
 // Maximum increment in the time CSR to wait for wait instructions.  This is not

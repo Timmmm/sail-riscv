@@ -162,7 +162,7 @@
         },
         "size": {
           "len": 64,
-          "value": "0x2000000"
+          "value": "0x10000000"
         },
         "attributes": {
           "cacheable": false,
@@ -225,6 +225,21 @@
       // This must be in a suitable memory region (see `memory.regions`).
       "base": 33554432,
       "size": 786432
+    },
+    "plic": {
+      // This must be in a suitable memory region (see `memory.regions`).
+      // The size is always 0x4000000.
+      "base": 201326592,
+      // Number of interrupt inputs. This does NOT include the reserved
+      // interrupt ID 0, so it can range from 0 to 1023 inclusive
+      // (though 0 would be rather useless).
+      "nsrc": 63,
+      // Number of output contexts. For harts these are typically connected
+      // to MEI and SEI (Machine/Supervisor External Interrupt), so two contexts
+      // per hart (if Supervisor mode is supported).
+      // This can range from 0 to 15872 inclusive (though again 0 would be
+      // rather useless).
+      "nctx": 2
     },
     "clock_frequency": 1000000000,
     "instructions_per_tick": 2,
