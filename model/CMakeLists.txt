@@ -217,9 +217,9 @@ add_custom_command(
 add_custom_target(generated_html_tgz DEPENDS ${model_html_tgz})
 add_dependencies(generated_sail_riscv_docs generated_html_tgz)
 
-############# Formal #############
+############# Formal and SystemVerilog #############
 
-# Theorem prover backends require compile time configuration.
+# Theorem prover and SV backends require compile time configuration.
 foreach (xlen IN ITEMS 32 64)
     # Use ELEN=XLEN.
     set(config_file "${CMAKE_BINARY_DIR}/config/rv${xlen}d_v256_e${xlen}.json")
@@ -283,6 +283,48 @@ foreach (xlen IN ITEMS 32 64)
                 ${sail_srcs}
         )
     endif()
+
+    ############# SystemVerilog #############
+
+    # Build SystemVerilog version of the code.
+    # Most of the flags are taken from the cheriot-ibex end-to-end equivalence project.
+    add_custom_command(
+        DEPENDS ${sail_srcs} ${config_file}
+        VERBATIM
+        OUTPUT "${arch}.sv"
+        COMMENT "Building SystemVerilog module from Sail model (${arch})"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        COMMAND
+            ${SAIL_BIN}
+            ${sail_common}
+
+            --verbose 4
+
+            --sv
+            # Output `always_comb` instead of `initial`
+            --sv-comb
+            # Take register values from inputs.
+            --sv-inregs
+            # Output register values.
+            --sv-outregs
+            # Don't emit strings, packed data structures or a memory implementation.
+            --sv-no-strings
+            --sv-no-packed
+            --sv-nomem
+            # Output these functions as modules instead. The '2' is 'slots'.
+            --sv-fun2wires 2:read_ram
+            --sv-fun2wires 2:write_ram
+            --sv-fun2wires wX
+
+            --sv-output-dir ${CMAKE_CURRENT_BINARY_DIR}
+            # The prefix of the output files.
+            -o "${arch}"
+            --config ${config_file}
+            # Input files.
+            ${SAIL_MODULES}
+            ${project_file}
+    )
+    add_custom_target(generated_sv_${arch} DEPENDS "${arch}.sv")
 
     ############# RMEM #############
 
